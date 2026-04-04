@@ -7,23 +7,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const ledgerList = document.getElementById('ledgerList');
     const transactionModal = document.getElementById('transactionModal');
     const transactionForm = document.getElementById('transactionForm');
-    const trItemInput = document.getElementById('trItem');
-    const trItemsList = document.getElementById('trItemsList');
-    const trQtyInput = document.getElementById('trQty');
-    const trWhomInput = document.getElementById('trWhom');
-    const trDateInput = document.getElementById('trDate');
-    const trTypeRadios = document.getElementsByName('trType');
-    const labelWhom = document.getElementById('labelWhom');
-    const labelItem = document.getElementById('labelItem');
-    const typeSale = document.getElementById('typeSale');
-    const typeService = document.getElementById('typeService');
-    const stockError = document.getElementById('stockError');
-    const confirmTrBtn = document.getElementById('confirmTrBtn');
     const statSalesProfit = document.getElementById('statSalesProfit');
+    const trItemsList = document.getElementById('trItemsList');
     const sumTotalPurchase = document.getElementById('sumTotalPurchase');
     const sumTotalSale = document.getElementById('sumTotalSale');
     const sumNetProfit = document.getElementById('sumNetProfit');
     const trItemsRows = document.getElementById('trItemsRows');
+    const trWhomInput = document.getElementById('trWhom');
+    const trDateInput = document.getElementById('trDate');
+    const labelWhom = document.getElementById('labelWhom');
+    const stockError = document.getElementById('stockError');
+    const marginWarning = document.getElementById('marginWarning');
+    const typeSale = document.getElementById('typeSale');
+    const typeService = document.getElementById('typeService');
+    const typePurchase = document.getElementById('typePurchase');
+    const confirmTrBtn = document.getElementById('confirmTrBtn');
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const transactionSearch = document.getElementById('transactionSearch');
@@ -373,31 +371,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateModalLabels = () => {
         const type = document.querySelector('input[name="trType"]:checked')?.value || 'Purchase';
-        
         if (labelWhom) {
             labelWhom.textContent = type === 'Purchase' ? 'Supplier Name' : 'Customer Name';
         }
-        
-        if (labelItem) {
-            labelItem.textContent = type === 'Service' ? 'Service Description' : 'Select or Type Item Name';
-        }
-
-        if (trItemInput) {
-            trItemInput.placeholder = type === 'Service' ? 'e.g. Networking Setup' : 'Search or enter new item...';
-        }
     };
-
-    if (trTypeRadios) {
-        trTypeRadios.forEach(radio => {
-            radio.addEventListener('change', updateModalLabels);
-        });
-    }
 
     window.closeTransactionModal = () => {
         transactionModal.classList.remove('active');
         transactionForm.reset();
-        stockError.style.display = 'none';
-        trQtyInput.classList.remove('vibrate-error');
+        if (stockError) stockError.style.display = 'none';
+        if (marginWarning) marginWarning.style.display = 'none';
         confirmTrBtn.disabled = false;
     };
 
@@ -414,17 +397,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateModalLabels();
             }
             
-            if (trItemInput) trItemInput.value = tr.itemName;
-            if (trQtyInput) trQtyInput.value = tr.qty;
             if (trWhomInput) trWhomInput.value = tr.whom || '';
             if (trDateInput) trDateInput.value = new Date(tr.timestamp || tr.date).toISOString().split('T')[0];
+            
+            const firstRow = trItemsRows.querySelector('.tr-item-row');
+            if (firstRow) {
+                firstRow.querySelector('.tr-item-name').value = tr.itemName;
+                firstRow.querySelector('.tr-item-qty').value = tr.qty;
+                firstRow.querySelector('.tr-item-rate').value = tr.rate;
+            }
             
             validateTrForm();
         }, 100);
     };
-
-    const trRateInput = document.getElementById('trRate');
-    const marginWarning = document.getElementById('marginWarning');
 
     const validateTrForm = () => {
         const rows = document.querySelectorAll('.tr-item-row');
@@ -457,23 +442,14 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmTrBtn.disabled = hasStockError && !typePurchase.checked;
     };
 
-    const autoFillRate = () => {
-        const itemName = trItemInput?.value.trim();
-        const item = inventory.find(i => i.name.toLowerCase() === itemName?.toLowerCase());
-        if (item && trRateInput) {
-            if (typeSale?.checked) {
-                trRateInput.value = item.price || 0;
-            } else if (!typeService?.checked) {
-                trRateInput.value = item.buyPrice || 0;
-            }
-        }
-        validateTrForm();
-    };
-
-    if (trQtyInput) trQtyInput.addEventListener('input', validateTrForm);
-    if (trItemInput) trItemInput.addEventListener('change', autoFillRate);
-    if (trRateInput) trRateInput.addEventListener('input', validateTrForm);
-    trTypeRadios.forEach(radio => radio.addEventListener('change', autoFillRate));
+    const trTypeRadios = document.getElementsByName('trType');
+    trTypeRadios.forEach(radio => radio.addEventListener('change', () => {
+        updateModalLabels();
+        // Update all prices if type changes
+        document.querySelectorAll('.tr-item-row').forEach(row => {
+            autoFillRowRate(row.id);
+        });
+    }));
 
     if (transactionForm) {
         transactionForm.addEventListener('submit', (e) => {

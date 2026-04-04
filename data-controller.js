@@ -187,6 +187,13 @@ window.DataController = (() => {
         return { success: true, itemId: item.id };
     };
 
+    const getNextDMNumber = () => {
+        let count = parseInt(localStorage.getItem(KEYS.DM_COUNTER)) || 500; // Start at 500
+        count++;
+        localStorage.setItem(KEYS.DM_COUNTER, count.toString());
+        return count;
+    };
+
     const getNextInvoiceNumber = () => {
         let count = parseInt(localStorage.getItem(KEYS.INV_COUNTER)) || 100; // Start at 101
         count++;
