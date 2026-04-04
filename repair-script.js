@@ -1,10 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- State Management ---
     let repairJobs = DataController.getRepairs();
+    let editingId = null;
 
 window.filterRepairs = () => {
     const query = document.getElementById('jobSearch').value.toLowerCase();
-    const rows = document.querySelectorAll('#repairList tr:not(.empty-state)');
+    const rows = document.querySelectorAll('#jobList tr:not(.empty-state)');
     rows.forEach(row => {
         const text = row.innerText.toLowerCase();
         row.style.display = text.includes(query) ? '' : 'none';
@@ -679,7 +680,7 @@ window.filterRepairs = () => {
             return;
         }
 
-        const headers = ['SR No', 'Date', 'Customer', 'Phone', 'Device', 'Model', 'Issue', 'Estimated', 'Cost', 'Status'];
+        const headers = ['SR No', 'Date', 'Customer', 'Phone', 'Device', 'Model', 'Issue', 'Estimated Price', 'Part Cost', 'Status'];
         const csvRows = [headers];
 
         jobs.forEach(j => {
@@ -687,11 +688,11 @@ window.filterRepairs = () => {
                 `"${j.srNo}"`,
                 `"${j.createdAt}"`,
                 `"${j.customerName}"`,
-                `"${j.customerPhone}"`,
+                `"${j.phone}"`,
                 `"${j.deviceType}"`,
-                `"${j.deviceModel}"`,
+                `"${j.model}"`,
                 `"${j.deviceIssue}"`,
-                j.estimatedPrice,
+                j.price,
                 j.partCost || 0,
                 `"${j.status}"`
             ]);

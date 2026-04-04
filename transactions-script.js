@@ -2,304 +2,126 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let inventory = DataController.getInventory();
     let transactions = DataController.getTransactions();
+    let editingBatchId = null;
 
     // --- DOM Elements ---
     const ledgerList = document.getElementById('ledgerList');
     const transactionModal = document.getElementById('transactionModal');
     const transactionForm = document.getElementById('transactionForm');
-    const statSalesProfit = document.getElementById('statSalesProfit');
-    const trItemsList = document.getElementById('trItemsList');
-    const sumTotalPurchase = document.getElementById('sumTotalPurchase');
-    const sumTotalSale = document.getElementById('sumTotalSale');
-    const sumNetProfit = document.getElementById('sumNetProfit');
     const trItemsRows = document.getElementById('trItemsRows');
+    const trItemsList = document.getElementById('trItemsList');
     const trWhomInput = document.getElementById('trWhom');
     const trDateInput = document.getElementById('trDate');
     const labelWhom = document.getElementById('labelWhom');
     const stockError = document.getElementById('stockError');
     const marginWarning = document.getElementById('marginWarning');
     const typeSale = document.getElementById('typeSale');
-    const typeService = document.getElementById('typeService');
     const typePurchase = document.getElementById('typePurchase');
+    const typeService = document.getElementById('typeService');
     const confirmTrBtn = document.getElementById('confirmTrBtn');
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
-    const transactionSearch = document.getElementById('transactionSearch');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
+    const statSalesProfit = document.getElementById('statSalesProfit');
+
+    const sumTotalPurchase = document.getElementById('sumTotalPurchase');
+    const sumTotalSale = document.getElementById('sumTotalSale');
+    const sumNetProfit = document.getElementById('sumNetProfit');
 
     let currentFilterType = 'All';
     let selectedTransactions = new Set();
-    let editingBatchId = null;
 
     // --- Utilities ---
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'INR'
+            currency: 'INR',
+            maximumFractionDigits: 2
         }).format(amount);
     };
 
-    const escapeXml = (unsafe) => {
-        if (!unsafe) return "";
-        return unsafe.toString().replace(/[<>&'"]/g, function (c) {
-            switch (c) {
-                case '<': return '&lt;';
-                case '>': return '&gt;';
-                case '&': return '&amp;';
-                case '\'': return '&apos;';
-                case '"': return '&quot;';
-            }
-        });
-    };
-
-    // --- Core logic ---
-
     const renderLedger = () => {
         if (!ledgerList) return;
-        transactions = DataController.getTransactions();
         ledgerList.innerHTML = '';
         
-        if (transactions.length === 0) {
-            ledgerList.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);"><i class="fa-solid fa-inbox" style="display: block; font-size: 2rem; margin-bottom: 1rem; opacity: 0.2;"></i> No transactions logged yet.</td></tr>`;
-            if (sumTotalPurchase) sumTotalPurchase.textContent = formatCurrency(0);
-            if (sumTotalSale) sumTotalSale.textContent = formatCurrency(0);
-            if (sumNetProfit) sumNetProfit.textContent = formatCurrency(0);
+        transactions = DataController.getTransactions();
+        inventory = DataController.getInventory();
+
+        // Sort by date/timestamp descending
+        const sorted = [...transactions].sort((a, b) => {
+            const dateA = new Date(a.timestamp || a.date);
+            const dateB = new Date(b.timestamp || b.date);
+            return dateB - dateA;
+        });
+
+        if (sorted.length === 0) {
+            ledgerList.innerHTML = `<tr class="empty-state"><td colspan="9" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                <i class="fa-solid fa-receipt" style="font-size: 2.5rem; display: block; margin-bottom: 1rem; opacity: 0.3;"></i>
+                No transactions recorded yet.
+            </td></tr>`;
             return;
         }
 
-        transactions.forEach(tr => {
+        sorted.forEach(tr => {
             const row = document.createElement('tr');
-            row.className = tr.type === 'Sale' ? 'ledger-sale' : 'ledger-purchase';
+            row.className = 'fade-in';
             row.dataset.type = tr.type;
             row.dataset.date = tr.date;
             row.dataset.id = tr.id;
             
-            // Margin Calculation
-            let marginText = '<span style="opacity: 0.3;">—</span>';
-            let marginStyle = 'opacity: 0.5;';
-            if (tr.type === 'Sale') {
-                const item = inventory.find(i => i.name === tr.itemName) || {};
-                const buyRate = item.buyPrice || 0;
-                if (buyRate > 0) {
-                    const margin = ((tr.rate - buyRate) / tr.rate) * 100;
-                    marginText = `${margin.toFixed(1)}%`;
-                    marginStyle = `color: ${margin >= 0 ? '#10b981' : '#ef4444'}; font-weight: 700;`;
-                }
-            }
-
-            // Payment mode badge
             const payMode = tr.paymentMode || 'Cash';
             const payColors = { Cash: '#10b981', UPI: '#6366f1', Card: '#3b82f6', Credit: '#f59e0b' };
-            const payColor = payColors[payMode] || '#6b7280';
+            const payStyle = `background: ${payColors[payMode]}20; color: ${payColors[payMode]}; border: 1px solid ${payColors[payMode]}40;`;
 
             row.innerHTML = `
-                <td><input type="checkbox" class="tr-checkbox" onchange="toggleTrSelect('${tr.id}', this)"></td>
-                <td>${tr.date}</td>
-                <td><div style="font-weight: 600;">${escapeXml(tr.whom || 'N/A')}</div></td>
                 <td>
-                    <strong>${escapeXml(tr.itemName)}</strong>
-                    ${tr.notes ? `<div style="font-size: 0.75rem; opacity: 0.6; margin-top: 2px;"><i class="fa-solid fa-note-sticky"></i> ${escapeXml(tr.notes)}</div>` : ''}
+                    <input type="checkbox" onchange="toggleTrSelect('${tr.id}', this)" ${selectedTransactions.has(tr.id) ? 'checked' : ''}>
                 </td>
-                <td><span class="type-badge ${tr.type.toLowerCase()}">${tr.type}</span></td>
-                <td>${tr.qty} Nos</td>
-                <td>${formatCurrency(tr.rate)}</td>
-                <td><span style="font-size: 0.8rem; font-weight: 600; color: ${payColor};">${payMode}</span></td>
-                <td style="font-weight: 600;">${formatCurrency(tr.totalValue)}</td>
                 <td>
-                    <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                        <button class="btn-edit" onclick="editTransaction('${tr.id}')" title="Edit Batch">
-                            <i class="fa-solid fa-pen-to-square" style="color: #6366f1;"></i>
-                        </button>
-                        <button class="btn-edit" onclick="downloadInvoice('${tr.id}')" title="Download Tax Invoice">
-                            <i class="fa-solid fa-file-invoice" style="color: #ec4899;"></i>
-                        </button>
-                        <button class="btn-edit" onclick="duplicateTransaction('${tr.id}')" title="Duplicate Transaction">
-                            <i class="fa-solid fa-copy" style="color: var(--primary);"></i>
-                        </button>
+                    <span class="type-pill val-${tr.type.toLowerCase()}">${tr.type}</span>
+                </td>
+                <td style="font-size: 0.82rem; font-weight: 500;">${new Date(tr.timestamp || tr.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}</td>
+                <td>
+                    <div style="font-weight: 700;">${escapeXml(tr.itemName)}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted);">INV: #${tr.batchId || 'N/A'}</div>
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeXml(tr.whom)}</td>
+                <td style="text-align: center; font-weight: bold;">${tr.qty}</td>
+                <td style="text-align: right;">${formatCurrency(tr.rate)}</td>
+                <td style="padding: 0.5rem; text-align: center;">
+                    <span class="badge" style="${payStyle} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold;">${payMode}</span>
+                </td>
+                <td style="text-align: right; font-weight: 800; color: ${tr.type === 'Sale' ? 'var(--primary)' : 'inherit'}">
+                    ${formatCurrency(tr.totalValue)}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
+                        <button class="btn-edit" onclick="editTransaction('${tr.id}')" title="Edit Batch"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="btn-edit" style="color: #6366f1; border-color: rgba(99,102,241,0.2);" onclick="generateTransactionPDF('${tr.id}')" title="Download Invoice"><i class="fa-solid fa-file-pdf"></i></button>
                     </div>
                 </td>
             `;
             ledgerList.appendChild(row);
         });
 
-        // Update top profit stat
         const saleProfit = DataController.getTransactionProfit();
-        if (statSalesProfit) {
-            statSalesProfit.textContent = formatCurrency(saleProfit);
-            statSalesProfit.style.color = saleProfit >= 0 ? '#10b981' : '#ef4444';
-        }
+        if (statSalesProfit) statSalesProfit.textContent = formatCurrency(saleProfit);
 
-        // Draw profit sparkline from last 6 months
-        renderProfitSparkline();
-
-        // Initial filter & summary
+        if (typeof renderProfitSparkline === 'function') renderProfitSparkline();
         filterTransactions();
-        renderMonthlyPnL();
     };
 
-    const renderMonthlyPnL = () => {
-        const now = new Date();
-        let monthPurchases = 0;
-        let monthSales = 0;
-        
-        transactions.forEach(tr => {
-            const trDate = new Date(tr.timestamp || tr.date);
-            if (trDate.getMonth() === now.getMonth() && trDate.getFullYear() === now.getFullYear()) {
-                if (tr.type === 'Sale') monthSales += tr.totalValue;
-                else if (tr.type === 'Purchase') monthPurchases += tr.totalValue;
-            }
-        });
-        
-        const netProfit = monthSales - monthPurchases;
-        const gst = monthSales * 0.18;
-        
-        const mpEl = document.getElementById('monthlyPurchases');
-        const msEl = document.getElementById('monthlySales');
-        const mnpEl = document.getElementById('monthlyNetProfit');
-        const gstEl = document.getElementById('monthlyGST');
-        
-        if (mpEl) mpEl.textContent = formatCurrency(monthPurchases);
-        if (msEl) msEl.textContent = formatCurrency(monthSales);
-        if (mnpEl) { mnpEl.textContent = formatCurrency(netProfit); mnpEl.style.color = netProfit >= 0 ? '#10b981' : '#ef4444'; }
-        if (gstEl) gstEl.textContent = formatCurrency(gst);
-    };
-
-    const renderProfitSparkline = () => {
-        const container = document.getElementById('profitSparkline');
-        if (!container) return;
-
-        const now = new Date();
-        const points = [];
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthSales = transactions
-                .filter(t => t.type === 'Sale' && new Date(t.timestamp || t.date).getMonth() === d.getMonth() && new Date(t.timestamp || t.date).getFullYear() === d.getFullYear())
-                .reduce((s, t) => s + (t.totalValue || 0), 0);
-            points.push(monthSales);
-        }
-
-        const max = Math.max(...points, 1);
-        const w = 100, h = 30;
-        const pts = points.map((v, i) => `${(i / (points.length - 1)) * w},${h - (v / max) * (h - 4)}`).join(' ');
-        
-        const trend = points[5] >= points[0];
-        const color = trend ? '#10b981' : '#ef4444';
-
-        container.innerHTML = `
-            <svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-                <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
-                <circle cx="${w}" cy="${h - (points[5]/max)*(h-4)}" r="3" fill="${color}"/>
-            </svg>
-        `;
-    };
-
-    // --- Bulk Delete ---
     window.toggleTrSelect = (id, checkbox) => {
-        if (checkbox.checked) {
-            selectedTransactions.add(id);
-        } else {
-            selectedTransactions.delete(id);
-        }
-        updateBulkDeleteUI();
-    };
-
-    window.toggleAllTransactions = (masterCheckbox) => {
-        const checkboxes = document.querySelectorAll('.tr-checkbox');
-        checkboxes.forEach(cb => {
-            cb.checked = masterCheckbox.checked;
-            const id = cb.closest('tr')?.dataset.id;
-            if (id) {
-                if (masterCheckbox.checked) selectedTransactions.add(id);
-                else selectedTransactions.delete(id);
-            }
-        });
-        updateBulkDeleteUI();
-    };
-
-    const updateBulkDeleteUI = () => {
-        const count = selectedTransactions.size;
-        if (bulkDeleteBtn) bulkDeleteBtn.style.display = count > 0 ? 'inline-flex' : 'none';
-        if (selectedCountSpan) selectedCountSpan.textContent = count;
-    };
-
-    window.deleteSelectedTransactions = async () => {
-        if (selectedTransactions.size === 0) return;
-        const confirmed = await showConfirm({
-            title: `Delete ${selectedTransactions.size} Transaction(s)?`,
-            message: 'This will permanently remove them. Stock quantities will NOT be adjusted.',
-            confirmText: 'Delete All',
-            confirmIcon: 'fa-trash',
-            type: 'danger'
-        });
-        if (!confirmed) return;
-
-        let allTr = DataController.getTransactions();
-        allTr = allTr.filter(t => !selectedTransactions.has(t.id));
-        DataController.saveTransactions(allTr);
-        selectedTransactions.clear();
-        transactions = allTr;
-        renderLedger();
-        showToast(`Deleted transactions removed.`);
-    };
-
-    window.setFilterType = (type, btn) => {
-        currentFilterType = type;
-        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        filterTransactions();
-    };
-
-    window.filterTransactions = () => {
-        const query = transactionSearch.value.toLowerCase();
-        const dateFrom = dateFromInput.value;
-        const dateTo = dateToInput.value;
-        const rows = document.querySelectorAll('#ledgerList tr');
-
-        let totalPurchase = 0;
-        let totalSale = 0;
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            if (row.cells.length < 5) return; // Skip empty state
-
-            const type = row.dataset.type;
-            const dateStr = row.dataset.date;
-            const text = row.innerText.toLowerCase();
-
-            // Criteria checks
-            const matchesSearch = text.includes(query);
-            const matchesType = currentFilterType === 'All' || type === currentFilterType;
-            
-            let matchesDate = true;
-            if (dateFrom && dateStr < dateFrom) matchesDate = false;
-            if (dateTo && dateStr > dateTo) matchesDate = false;
-
-            const isVisible = matchesSearch && matchesType && matchesDate;
-            row.style.display = isVisible ? '' : 'none';
-
-            if (isVisible) {
-                visibleCount++;
-        const rowParent = row.cells[5]?.textContent;
-        const valStr = row.cells[7]?.textContent.replace(/[^-0-9.]/g, '');
-        const val = parseFloat(valStr) || 0;
-        if (type === 'Sale') totalSale += val;
-        else if (type === 'Purchase') totalPurchase += val;
-            }
-        });
-
-        // Update Summary Bar
-        if (sumTotalPurchase) sumTotalPurchase.textContent = formatCurrency(totalPurchase);
-        if (sumTotalSale) sumTotalSale.textContent = formatCurrency(totalSale);
-        if (sumNetProfit) {
-            const net = totalSale - totalPurchase;
-            sumNetProfit.textContent = formatCurrency(net);
-            sumNetProfit.style.color = net >= 0 ? '#10b981' : '#ef4444';
-        }
+        if (checkbox.checked) selectedTransactions.add(id);
+        else selectedTransactions.delete(id);
+        
+        const bulkBtn = document.getElementById('bulkDeleteBtn');
+        const selectedCount = document.getElementById('selectedCount');
+        if (bulkBtn) bulkBtn.style.display = selectedTransactions.size > 0 ? 'inline-block' : 'none';
+        if (selectedCount) selectedCount.textContent = selectedTransactions.size;
     };
 
     window.openTransactionModal = () => {
-        editingBatchId = null; // Clear edit state
+        editingBatchId = null;
         document.getElementById('confirmTrBtn').textContent = 'Confirm Transaction';
         inventory = DataController.getInventory();
         if (trItemsList) {
@@ -307,58 +129,48 @@ document.addEventListener('DOMContentLoaded', () => {
             inventory.forEach(item => {
                 const opt = document.createElement('option');
                 opt.value = item.name;
-                opt.dataset.id = item.id;
                 trItemsList.appendChild(opt);
             });
         }
-        
-        if (trDateInput) {
-            trDateInput.value = new Date().toISOString().split('T')[0];
-        }
-
+        if (trDateInput) trDateInput.value = new Date().toISOString().split('T')[0];
         updateModalLabels();
-        
         if (trItemsRows) {
             trItemsRows.innerHTML = '';
-            addTrItemRow(); // Start with one row
+            addTrItemRow();
         }
-
         transactionModal.classList.add('active');
     };
 
+    window.closeTransactionModal = () => {
+        transactionModal.classList.remove('active');
+        transactionForm.reset();
+        editingBatchId = null;
+    };
+
     window.addTrItemRow = () => {
-        const rowId = 'tr_row_' + Date.now() + Math.floor(Math.random()*100);
+        const rowId = 'tr_row_' + Math.random().toString(36).substr(2, 9);
         const div = document.createElement('div');
         div.className = 'tr-item-row';
         div.id = rowId;
         div.style = 'display: grid; grid-template-columns: 1fr 80px 100px 30px; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;';
         
         div.innerHTML = `
-            <div>
-                <input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" onchange="autoFillRowRate('${rowId}')">
-            </div>
-            <div>
-                <input type="number" class="tr-item-qty" min="1" value="1" required style="width:100%" oninput="validateTrForm()">
-            </div>
-            <div>
-                <input type="number" class="tr-item-rate" min="0" step="0.01" required placeholder="0.00" style="width:100%" oninput="validateTrForm()">
-            </div>
-            <div>
-                <button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
+            <div><input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" onchange="autoFillRowRate('${rowId}')"></div>
+            <div><input type="number" class="tr-item-qty" min="1" value="1" required style="width:100%" oninput="validateTrForm()"></div>
+            <div><input type="number" class="tr-item-rate" min="0" step="0.01" required placeholder="0.00" style="width:100%" oninput="validateTrForm()"></div>
+            <div><button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></div>
         `;
         trItemsRows.appendChild(div);
         validateTrForm();
     };
 
-    window.removeTrItemRow = (id) => {
-        if (trItemsRows.children.length > 1) {
-            document.getElementById(id).remove();
+    window.removeTrItemRow = (rowId) => {
+        const rows = document.querySelectorAll('.tr-item-row');
+        if (rows.length > 1) {
+            document.getElementById(rowId).remove();
             validateTrForm();
         } else {
-            showToast('Order must have at least one item.', 'error');
+            showToast('Transaction must have at least one product.', 'error');
         }
     };
 
@@ -366,55 +178,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = document.getElementById(rowId);
         const name = row.querySelector('.tr-item-name').value.trim();
         const rateInput = row.querySelector('.tr-item-rate');
-        
         const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
         if (item) {
             const isSale = typeSale?.checked;
-            rateInput.value = isSale ? (item.price || 0) : (item.buyPrice || 0);
+            rateInput.value = isSale ? (item.sellPrice || 0) : (item.buyPrice || 0);
         }
         validateTrForm();
     };
 
     const updateModalLabels = () => {
-        const type = document.querySelector('input[name="trType"]:checked')?.value || 'Purchase';
-        if (labelWhom) {
-            labelWhom.textContent = type === 'Purchase' ? 'Supplier Name' : 'Customer Name';
+        const typeValue = document.querySelector('input[name="trType"]:checked')?.value || 'Purchase';
+        if (labelWhom) labelWhom.textContent = typeValue === 'Purchase' ? 'Supplier Name' : 'Customer Name';
+        
+        // Handle Service Description visibility/label
+        const trNotesLabel = document.querySelector('label[for="trNotes"]');
+        if (trNotesLabel) {
+            if (typeValue === 'Service') {
+                trNotesLabel.textContent = 'Service Description (Mandatory for Service)';
+                document.getElementById('trNotes').placeholder = 'Describe the service provided...';
+                document.getElementById('trNotes').required = true;
+            } else {
+                trNotesLabel.textContent = 'Internal Notes (Optional)';
+                document.getElementById('trNotes').placeholder = 'Any remarks...';
+                document.getElementById('trNotes').required = false;
+            }
         }
-    };
-
-    window.closeTransactionModal = () => {
-        transactionModal.classList.remove('active');
-        transactionForm.reset();
-        if (stockError) stockError.style.display = 'none';
-        if (marginWarning) marginWarning.style.display = 'none';
-        confirmTrBtn.disabled = false;
-    };
-
-    window.duplicateTransaction = (id) => {
-        const tr = transactions.find(t => t.id === id);
-        if (!tr) return;
-        
-        openTransactionModal();
-        
-        setTimeout(() => {
-            const typeRadio = document.querySelector(`input[name="trType"][value="${tr.type}"]`);
-            if (typeRadio) {
-                typeRadio.checked = true;
-                updateModalLabels();
-            }
-            
-            if (trWhomInput) trWhomInput.value = tr.whom || '';
-            if (trDateInput) trDateInput.value = new Date(tr.timestamp || tr.date).toISOString().split('T')[0];
-            
-            const firstRow = trItemsRows.querySelector('.tr-item-row');
-            if (firstRow) {
-                firstRow.querySelector('.tr-item-name').value = tr.itemName;
-                firstRow.querySelector('.tr-item-qty').value = tr.qty;
-                firstRow.querySelector('.tr-item-rate').value = tr.rate;
-            }
-            
-            validateTrForm();
-        }, 100);
     };
 
     const validateTrForm = () => {
@@ -427,51 +215,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const nameEl = row.querySelector('.tr-item-name');
             const qtyEl = row.querySelector('.tr-item-qty');
             const rateEl = row.querySelector('.tr-item-rate');
-            
             const name = nameEl.value.trim();
             const qty = parseFloat(qtyEl.value) || 0;
             const rate = parseFloat(rateEl.value) || 0;
-            
             const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
             
-            if (isSale && item && qty > item.qty) {
-                hasStockError = true;
-                qtyEl.style.borderColor = '#ef4444';
-            } else {
-                qtyEl.style.borderColor = '';
-            }
-
-            if (isSale && item && item.buyPrice && rate <= item.buyPrice && rate > 0) {
-                hasMarginWarning = true;
-            }
+            if (isSale && item && qty > item.qty) { hasStockError = true; qtyEl.style.borderColor = '#ef4444'; }
+            else { qtyEl.style.borderColor = ''; }
+            if (isSale && item && item.buyPrice && rate <= item.buyPrice && rate > 0) hasMarginWarning = true;
         });
 
         if (stockError) stockError.style.display = hasStockError ? 'block' : 'none';
         if (marginWarning) marginWarning.style.display = hasMarginWarning ? 'block' : 'none';
-        
-        confirmTrBtn.disabled = hasStockError && !typePurchase.checked;
+        if (confirmTrBtn) confirmTrBtn.disabled = hasStockError && !typePurchase.checked && !typeService.checked;
     };
 
     window.editTransaction = (id) => {
         const tr = transactions.find(t => t.id === id);
         if (!tr) return;
-        
-        editingBatchId = tr.batchId;
+        editingBatchId = tr.batchId || tr.id;
         const batchItems = tr.batchId ? transactions.filter(t => t.batchId === tr.batchId) : [tr];
-        
         openTransactionModal();
-        editingBatchId = tr.batchId; // Reset after openTransactionModal clears it
+        editingBatchId = tr.batchId || tr.id;
         document.getElementById('confirmTrBtn').textContent = 'Update Transaction';
-        
         setTimeout(() => {
-            // Header
             if (trWhomInput) trWhomInput.value = tr.whom || '';
             if (trDateInput) trDateInput.value = new Date(tr.timestamp || tr.date).toISOString().split('T')[0];
             const typeRadio = document.querySelector(`input[name="trType"][value="${tr.type}"]`);
-            if (typeRadio) typeRadio.checked = true;
-            updateModalLabels();
-
-            // Items
+            if (typeRadio) { typeRadio.checked = true; updateModalLabels(); }
             if (trItemsRows) {
                 trItemsRows.innerHTML = '';
                 batchItems.forEach(item => {
@@ -481,35 +252,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     div.id = rowId;
                     div.style = 'display: grid; grid-template-columns: 1fr 80px 100px 30px; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;';
                     div.innerHTML = `
-                        <div>
-                            <input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" value="${escapeXml(item.itemName)}" onchange="autoFillRowRate('${rowId}')">
-                        </div>
-                        <div>
-                            <input type="number" class="tr-item-qty" min="1" value="${item.qty}" required style="width:100%" oninput="validateTrForm()">
-                        </div>
-                        <div>
-                            <input type="number" class="tr-item-rate" min="0" step="0.01" value="${item.rate}" required placeholder="0.00" style="width:100%" oninput="validateTrForm()">
-                        </div>
-                        <div>
-                            <button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
+                        <div><input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" value="${escapeXml(item.itemName)}" onchange="autoFillRowRate('${rowId}')"></div>
+                        <div><input type="number" class="tr-item-qty" min="1" value="${item.qty}" required style="width:100%" oninput="validateTrForm()"></div>
+                        <div><input type="number" class="tr-item-rate" min="0" step="0.01" value="${item.rate}" required placeholder="0.00" style="width:100%" oninput="validateTrForm()"></div>
+                        <div><button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></div>
                     `;
                     trItemsRows.appendChild(div);
                 });
                 validateTrForm();
             }
+            if (tr.notes) document.getElementById('trNotes').value = tr.notes;
+            const payRadio = document.querySelector(`input[name="trPayment"][value="${tr.paymentMode || 'Cash'}"]`);
+            if (payRadio) payRadio.checked = true;
         }, 100);
     };
 
-    const trTypeRadios = document.getElementsByName('trType');
-    trTypeRadios.forEach(radio => radio.addEventListener('change', () => {
+    document.getElementsByName('trType').forEach(radio => radio.addEventListener('change', () => {
         updateModalLabels();
-        // Update all prices if type changes
-        document.querySelectorAll('.tr-item-row').forEach(row => {
-            autoFillRowRate(row.id);
-        });
+        document.querySelectorAll('.tr-item-row').forEach(row => autoFillRowRate(row.id));
     }));
 
     if (transactionForm) {
@@ -530,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             let successCount = 0;
-            
             rows.forEach(row => {
                 const itemName = row.querySelector('.tr-item-name').value.trim();
                 const qty = parseFloat(row.querySelector('.tr-item-qty').value);
@@ -547,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         itemName: itemName, 
                         whom: whom,
                         customDate: customDate,
-                        batchId: batchId, // Link them all!
+                        batchId: batchId,
                         allowNegative: true 
                     });
                     successCount++;
@@ -562,32 +321,87 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.downloadInvoice = (id) => {
-        const tr = transactions.find(t => t.id === id);
-        if (!tr) return;
+    if (dateFromInput) dateFromInput.addEventListener('change', renderLedger);
+    if (dateToInput) dateToInput.addEventListener('change', renderLedger);
 
-        let batchItems = [];
-        if (tr.batchId) {
-            // Find all siblings in the batch
-            batchItems = transactions.filter(t => t.batchId === tr.batchId);
-        } else {
-            batchItems = [tr];
-        }
+    window.filterTransactions = () => {
+        const query = document.getElementById('transactionSearch')?.value.toLowerCase() || '';
+        const rows = document.querySelectorAll('#ledgerList tr:not(.empty-state)');
+        const from = dateFromInput?.value ? new Date(dateFromInput.value) : null;
+        const to = dateToInput?.value ? new Date(dateToInput.value) : null;
 
-        const first = batchItems[0];
-        generatePDF('Invoice', {
-            invoiceNo: first.batchId || first.id.substring(3, 8),
-            orgName: first.whom || 'Customer',
-            items: batchItems.map(i => ({
-                product: i.itemName,
-                qty: i.qty,
-                price: i.rate
-            })),
-            date: first.date,
-            type: first.type
+        if (from) from.setHours(0,0,0,0);
+        if (to) to.setHours(23,59,59,999);
+
+        let totalPurchase = 0;
+        let totalSale = 0;
+
+        rows.forEach(row => {
+            const trDate = new Date(row.dataset.date);
+            const type = row.dataset.type;
+            const text = row.innerText.toLowerCase();
+
+            const matchesSearch = text.includes(query);
+            const matchesType = currentFilterType === 'All' || type === currentFilterType;
+            const matchesDate = (!from || trDate >= from) && (!to || trDate <= to);
+            
+            const isVisible = matchesSearch && matchesType && matchesDate;
+            row.style.display = isVisible ? '' : 'none';
+
+            if (isVisible) {
+                const valStr = row.cells[8]?.textContent.replace(/[^-0-9.]/g, '');
+                const val = parseFloat(valStr) || 0;
+                if (type === 'Sale') totalSale += val;
+                else if (type === 'Purchase') totalPurchase += val;
+            }
         });
+
+        if (sumTotalPurchase) sumTotalPurchase.textContent = formatCurrency(totalPurchase);
+        if (sumTotalSale) sumTotalSale.textContent = formatCurrency(totalSale);
+        if (sumNetProfit) {
+            const net = totalSale - totalPurchase;
+            sumNetProfit.textContent = formatCurrency(net);
+            sumNetProfit.className = `value ${net >= 0 ? 'text-green' : 'text-red'}`;
+        }
     };
 
-    // --- Initial Load ---
+    window.generateTransactionPDF = (id) => {
+        const tr = transactions.find(t => t.id === id);
+        if (!tr) return;
+        const batchItems = tr.batchId ? transactions.filter(t => t.batchId === tr.batchId) : [tr];
+        
+        const data = {
+            invoiceNo: tr.batchId || tr.id.split('_').pop(),
+            date: tr.date,
+            customer: tr.whom,
+            whom: tr.whom,
+            type: tr.type,
+            paymentMode: tr.paymentMode || 'Cash',
+            notes: tr.notes || '',
+            items: batchItems.map(item => ({
+                product: item.itemName,
+                qty: item.qty,
+                price: item.rate,
+                total: item.totalValue
+            })),
+            total: batchItems.reduce((sum, item) => sum + item.totalValue, 0)
+        };
+        
+        if (window.generatePDF) generatePDF(tr.type === 'Purchase' ? 'Purchase Invoice' : 'Tax Invoice', data);
+    };
+
+    function escapeXml(unsafe) {
+        if (!unsafe) return '';
+        return unsafe.replace(/[<>&'"]/g, function (c) {
+            switch (c) {
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '&': return '&amp;';
+                case '\'': return '&apos;';
+                case '"': return '&quot;';
+            }
+        });
+    }
+
     renderLedger();
 });

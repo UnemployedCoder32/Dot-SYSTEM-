@@ -334,8 +334,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentTech) callTechSelect.value = currentTech;
 
         // Enable Search
-        makeSearchableSelect('callOrg', 'Search Organization...');
-        makeSearchableSelect('callTech', 'Search Technician...');
+        if (typeof makeSearchableSelect === 'function') {
+            makeSearchableSelect('callOrg', 'Search Organization...');
+            makeSearchableSelect('callTech', 'Search Technician...');
+        }
     };
 
     const renderServiceHistory = () => {
@@ -430,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const orgName = orgInput.value.trim();
         const contact = contactInput.value.trim();
-        const phone = document.getElementById('phone') ? document.getElementById('phone').value.trim() : ''; // Fix reference
+        const phone = document.getElementById('phone')?.value.trim() || '';
         const amcAmountInput = document.getElementById('amcAmount');
         const amount = Math.max(0, parseFloat(amcAmountInput.dataset.rawValue || amcAmountInput.value) || 0);
 

@@ -422,7 +422,7 @@ window.DataController = (() => {
     return {
         getInventory, saveInventory, getInventoryValue,
         getSuppliers, saveSuppliers,
-        getRepairs, saveRepairs, getCompletedRepairRevenue,
+        getRepairs, saveRepairs, getRepairJobs: getRepairs, saveRepairJobs: saveRepairs, getCompletedRepairRevenue,
         getAmc, saveAmc, getAmcMonthlyRevenue,
         getEmployees, saveEmployees, getPayrollExpense,
         getCrmHistory, saveCrmHistory,
