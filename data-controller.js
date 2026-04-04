@@ -29,7 +29,8 @@ window.DataController = (() => {
         SERVICECALLS: 'tally_service_calls',
         NONAMCCALLS: 'tally_non_amc_calls',
         TRASH: 'tally_trash',
-        DM_COUNTER: 'tally_dm_counter'
+        DM_COUNTER: 'tally_dm_counter',
+        INV_COUNTER: 'tally_inv_counter'
     };
 
     // Load all data into cache once
@@ -175,7 +176,8 @@ window.DataController = (() => {
             paymentMode: meta.paymentMode || 'Cash',
             notes: meta.notes || '',
             whom: meta.whom || (type === 'Sale' || type === 'DM-Out' ? 'Customer' : 'Supplier'),
-            dmNumber: meta.dmNumber || null // Track DM association
+            dmNumber: meta.dmNumber || null, // Track DM association
+            batchId: meta.batchId || null // Track multi-item batch association
         };
 
         _state.transactions.unshift(transaction);
@@ -185,10 +187,10 @@ window.DataController = (() => {
         return { success: true, itemId: item.id };
     };
 
-    const getNextDMNumber = () => {
-        let count = parseInt(localStorage.getItem(KEYS.DM_COUNTER)) || 500; // Start at 500
+    const getNextInvoiceNumber = () => {
+        let count = parseInt(localStorage.getItem(KEYS.INV_COUNTER)) || 100; // Start at 101
         count++;
-        localStorage.setItem(KEYS.DM_COUNTER, count.toString());
+        localStorage.setItem(KEYS.INV_COUNTER, count.toString());
         return count;
     };
 
@@ -389,7 +391,7 @@ window.DataController = (() => {
         getEmployees, saveEmployees, getPayrollExpense,
         getCrmHistory, saveCrmHistory,
         getTransactions, updateStock, getTransactionProfit, saveTransactions,
-        getNextDMNumber, cancelDM,
+        getNextDMNumber, getNextInvoiceNumber, cancelDM,
         getServiceCalls, saveServiceCalls,
         getNonAmcCalls, saveNonAmcCalls,
         getCalculatedNetProfit,

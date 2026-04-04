@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sumTotalPurchase = document.getElementById('sumTotalPurchase');
     const sumTotalSale = document.getElementById('sumTotalSale');
     const sumNetProfit = document.getElementById('sumNetProfit');
+    const trItemsRows = document.getElementById('trItemsRows');
     const dateFromInput = document.getElementById('dateFrom');
     const dateToInput = document.getElementById('dateTo');
     const transactionSearch = document.getElementById('transactionSearch');
@@ -312,7 +313,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         updateModalLabels();
+        
+        if (trItemsRows) {
+            trItemsRows.innerHTML = '';
+            addTrItemRow(); // Start with one row
+        }
+
         transactionModal.classList.add('active');
+    };
+
+    window.addTrItemRow = () => {
+        const rowId = 'tr_row_' + Date.now() + Math.floor(Math.random()*100);
+        const div = document.createElement('div');
+        div.className = 'tr-item-row';
+        div.id = rowId;
+        div.style = 'display: grid; grid-template-columns: 1fr 80px 100px 30px; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;';
+        
+        div.innerHTML = `
+            <div>
+                <input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" onchange="autoFillRowRate('${rowId}')">
+            </div>
+            <div>
+                <input type="number" class="tr-item-qty" min="1" value="1" required style="width:100%" oninput="validateTrForm()">
+            </div>
+            <div>
+                <input type="number" class="tr-item-rate" min="0" step="0.01" required placeholder="0.00" style="width:100%" oninput="validateTrForm()">
+            </div>
+            <div>
+                <button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `;
+        trItemsRows.appendChild(div);
+        validateTrForm();
+    };
+
+    window.removeTrItemRow = (id) => {
+        if (trItemsRows.children.length > 1) {
+            document.getElementById(id).remove();
+            validateTrForm();
+        } else {
+            showToast('Order must have at least one item.', 'error');
+        }
+    };
+
+    window.autoFillRowRate = (rowId) => {
+        const row = document.getElementById(rowId);
+        const name = row.querySelector('.tr-item-name').value.trim();
+        const rateInput = row.querySelector('.tr-item-rate');
+        
+        const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        if (item) {
+            const isSale = typeSale?.checked;
+            rateInput.value = isSale ? (item.price || 0) : (item.buyPrice || 0);
+        }
+        validateTrForm();
     };
 
     const updateModalLabels = () => {
@@ -371,40 +427,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const marginWarning = document.getElementById('marginWarning');
 
     const validateTrForm = () => {
-        const itemName = trItemInput?.value.trim();
-        const item = inventory.find(i => i.name.toLowerCase() === itemName?.toLowerCase());
-        const qty = parseFloat(trQtyInput?.value) || 0;
-        const rate = parseFloat(trRateInput?.value) || 0;
+        const rows = document.querySelectorAll('.tr-item-row');
+        let hasStockError = false;
+        let hasMarginWarning = false;
         const isSale = typeSale?.checked;
-        const isService = typeService?.checked;
 
-        if (isSale && item && qty > item.qty) {
-            stockError.style.display = 'block';
-            trQtyInput.classList.add('vibrate-error');
-            confirmTrBtn.disabled = true;
-        } else if (isSale && !item && itemName) {
-            // New item being sold? We usually allow it if it's an auto-add scenario, 
-            // but for Sale, stock is 0 initially.
-            // Let's show a warning but maybe don't block UNLESS it's a strict sale.
-            // For now, let's just warn about 0 stock for new items.
-            stockError.style.display = 'block';
-            stockError.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> New item will start with 0 stock.';
-            confirmTrBtn.disabled = false; // Allow creation
-        } else {
-            stockError.style.display = 'none';
-            if (trQtyInput) trQtyInput.classList.remove('vibrate-error');
-            confirmTrBtn.disabled = false;
-        }
-
-        if (isSale && item && item.buyPrice && marginWarning) {
-            if (rate <= item.buyPrice && rate > 0) {
-                marginWarning.style.display = 'block';
+        rows.forEach(row => {
+            const name = row.querySelector('.tr-item-name').value.trim();
+            const qty = parseFloat(row.querySelector('.tr-item-qty').value) || 0;
+            const rate = parseFloat(row.querySelector('.tr-item-rate').value) || 0;
+            
+            const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+            
+            if (isSale && item && qty > item.qty) {
+                hasStockError = true;
+                row.querySelector('.tr-item-qty').style.borderColor = '#ef4444';
             } else {
-                marginWarning.style.display = 'none';
+                row.querySelector('.tr-item-qty').style.borderColor = '';
             }
-        } else if (marginWarning) {
-            marginWarning.style.display = 'none';
-        }
+
+            if (isSale && item && item.buyPrice && rate <= item.buyPrice && rate > 0) {
+                hasMarginWarning = true;
+            }
+        });
+
+        if (stockError) stockError.style.display = hasStockError ? 'block' : 'none';
+        if (marginWarning) marginWarning.style.display = hasMarginWarning ? 'block' : 'none';
+        
+        confirmTrBtn.disabled = hasStockError && !typePurchase.checked;
     };
 
     const autoFillRate = () => {
@@ -431,32 +481,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeValue = document.querySelector('input[name="trType"]:checked').value;
             const paymentMode = document.querySelector('input[name="trPayment"]:checked')?.value || 'Cash';
             const notes = document.getElementById('trNotes')?.value.trim() || '';
-            const itemName = trItemInput?.value.trim();
             const whom = trWhomInput?.value.trim();
             const customDate = trDateInput?.value;
-            const qty = parseFloat(trQtyInput.value);
-            const rate = parseFloat(trRateInput?.value || 0);
 
-            // Find item by name or assume new
-            const item = inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
-            const itemId = item ? item.id : 'NEW_ITEM';
+            const rows = document.querySelectorAll('.tr-item-row');
+            const batchId = DataController.getNextInvoiceNumber();
+            
+            let successCount = 0;
+            
+            rows.forEach(row => {
+                const itemName = row.querySelector('.tr-item-name').value.trim();
+                const qty = parseFloat(row.querySelector('.tr-item-qty').value);
+                const rate = parseFloat(row.querySelector('.tr-item-rate').value || 0);
 
-            const result = DataController.updateStock(itemId, typeValue, qty, { 
-                paymentMode, 
-                notes, 
-                rate, 
-                itemName: itemName, // Fallback name for auto-create
-                whom: whom,
-                customDate: customDate,
-                allowNegative: typeValue === 'Sale' // Allow sale recorded after fact for new items?
+                if (itemName && qty > 0) {
+                    const item = inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+                    const itemId = item ? item.id : 'NEW_ITEM';
+
+                    DataController.updateStock(itemId, typeValue, qty, { 
+                        paymentMode, 
+                        notes, 
+                        rate, 
+                        itemName: itemName, 
+                        whom: whom,
+                        customDate: customDate,
+                        batchId: batchId, // Link them all!
+                        allowNegative: true 
+                    });
+                    successCount++;
+                }
             });
 
-            if (result.success) {
+            if (successCount > 0) {
                 closeTransactionModal();
                 renderLedger();
-                showToast(`${typeValue} logged successfully.`);
-            } else {
-                showToast(result.reason, 'error');
+                showToast(`Invoice #${batchId} generated with ${successCount} products.`);
             }
         });
     }
@@ -464,12 +523,26 @@ document.addEventListener('DOMContentLoaded', () => {
     window.downloadInvoice = (id) => {
         const tr = transactions.find(t => t.id === id);
         if (!tr) return;
+
+        let batchItems = [];
+        if (tr.batchId) {
+            // Find all siblings in the batch
+            batchItems = transactions.filter(t => t.batchId === tr.batchId);
+        } else {
+            batchItems = [tr];
+        }
+
+        const first = batchItems[0];
         generatePDF('Invoice', {
-            id: tr.id,
-            orgName: 'Customer',
-            items: [{product: tr.itemName, qty: tr.qty, price: tr.rate}],
-            date: tr.date,
-            totalValue: tr.totalValue
+            invoiceNo: first.batchId || first.id.substring(3, 8),
+            orgName: first.whom || 'Customer',
+            items: batchItems.map(i => ({
+                product: i.itemName,
+                qty: i.qty,
+                price: i.rate
+            })),
+            date: first.date,
+            type: first.type
         });
     };
 
