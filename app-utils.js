@@ -289,373 +289,739 @@ function showToast(message, type = 'success') {
 // =====================================================================
 
 /**
- * Generates and downloads a professional PDF.
+ * Generates and opens a professional PDF using the new HTML template.
  * @param {'Estimate'|'Invoice'} type - Document type.
  * @param {object} data - Data for the document.
  */
 async function generatePDF(type, data) {
-    const { jsPDF } = window.jspdf;
-    if (!jsPDF) {
-        alert('PDF library not loaded. Please ensure you are connected to the internet.');
-        return;
-    }
-
-    const doc = new jsPDF();
-    const margin = 20;
-    const pageWidth = doc.internal.pageSize.width;
-    const isQuotation = (type === 'Estimate' && data.status === 'Pending');
-    
-    // --- Header Section (Dark Navy) ---
-    const allSettings = JSON.parse(localStorage.getItem('dot_system_settings')) || {};
-    const businessName = allSettings.bizName || 'DOT SYSTEM';
-    const businessSub = allSettings.bizEmail || 'Business Solutions & Hardware Services';
-    const businessAddress = `${allSettings.bizAddr || ''}, ${allSettings.bizCity || ''} - ${allSettings.bizPin || ''}`;
-    const businessPhone = allSettings.bizPhone || '';
-    const gstNumber = allSettings.gstNum ? `GSTIN: ${allSettings.gstNum}` : 'GSTIN: NOT PROVIDED';
-
-    doc.setFillColor(15, 23, 42); // #0f172a
-    doc.rect(0, 0, pageWidth, 40, 'F');
-    
-    // Logo Rendering (if exists)
-    if (allSettings.logo) {
-        try {
-            doc.addImage(allSettings.logo, 'PNG', margin, 5, 30, 30);
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.text(businessName.toUpperCase(), margin + 35, 22);
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.text(businessSub, margin + 35, 30);
-        } catch (e) {
-            console.error('Logo render failed', e);
-            // Fallback to text
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.setFont('helvetica', 'bold');
-            doc.text(businessName.toUpperCase(), margin, 22);
+        let htmlString = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tax Invoice</title>
+    <style>
+        /* General Setup */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
         }
-    } else {
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.setFont('helvetica', 'bold');
-        doc.text(businessName.toUpperCase(), margin, 22);
+
+        body {
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* A4 Page Styling */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 10mm;
+            background: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Print Specifics */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                border: none;
+                box-shadow: none;
+                width: 100%;
+                height: 100%;
+                padding: 10mm;
+            }
+        }
+
+        /* Typography */
+        body {
+            font-size: 10pt;
+            color: #000;
+        }
         
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(businessSub, margin, 30);
-    }
-    
-    // BLUEMARK Badge (Right aligned)
-    let badgeX;
-    let textWidth;
-    if (allSettings.showBadge !== false) {
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        const badgeText = 'BLUEMARK';
-        textWidth = doc.getTextWidth(badgeText);
-        badgeX = pageWidth - margin - 8; 
-        doc.text(badgeText, badgeX - textWidth, 22);
+        h1, h2, h3, h4, h5 { font-size: 11pt; }
         
-        // Green Dot
-        doc.setFillColor(16, 185, 129); // Green
-        doc.circle(badgeX - textWidth + textWidth + 3, 20.5, 1.5, 'F');
-    }
+        .small-text {
+            font-size: 8pt;
+        }
 
-    // Document Type Label (TAX INVOICE or SERVICE QUOTATION)
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    const docTitle = isQuotation ? 'SERVICE QUOTATION' : 'TAX INVOICE';
-    doc.text(docTitle, pageWidth - margin, 32, { align: 'right' });
+        /* Global Borders Helper */
+        .border-box {
+            border: 1px solid #000;
+        }
+        
+        .border-bottom { border-bottom: 1px solid #000; }
+        .border-right { border-right: 1px solid #000; }
+        .border-left { border-left: 1px solid #000; }
+        .border-top { border-top: 1px solid #000; }
 
-    // --- Watermark (BLUEMARK) ---
-    doc.saveGraphicsState();
-    doc.setTextColor(230, 230, 230);
-    doc.setFontSize(70);
-    doc.text('BLUEMARK', pageWidth / 2, doc.internal.pageSize.height / 2, {
-        align: 'center',
-        angle: 45,
-        opacity: 0.1
-    });
-    doc.restoreGraphicsState();
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: bold; }
+
+        /* Outer Table Wrapper */
+        .invoice-wrapper {
+            border: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Layout */
+        .header-title-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #000;
+        }
+        .header-title {
+            flex-grow: 1;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12pt;
+        }
+        .header-original {
+            font-size: 9pt;
+            font-style: italic;
+        }
+
+        .header-split {
+            display: flex;
+            border-bottom: 1px solid #000;
+        }
+        
+        /* Seller Column */
+        .seller-col {
+            flex: 1;
+            padding: 5px;
+            border-right: 1px solid #000;
+        }
+        .seller-name {
+            font-weight: bold;
+            font-size: 11pt;
+            margin-bottom: 5px;
+        }
+
+        /* Meta Table Column */
+        .meta-col {
+            flex: 1;
+        }
+
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .meta-table td {
+            border-bottom: 1px solid #000;
+            border-right: 1px solid #000;
+            padding: 3px 5px;
+            width: 50%;
+            vertical-align: top;
+            font-size: 9pt;
+        }
+        .meta-table td:last-child {
+            border-right: none;
+        }
+        .meta-table tr:last-child td {
+            border-bottom: none;
+        }
+        .meta-label {
+            font-size: 8pt;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .meta-value {
+            font-weight: bold;
+        }
+
+        /* Buyer Layout */
+        .buyer-section {
+            padding: 5px;
+            border-bottom: 1px solid #000;
+        }
+
+        /* Line Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .items-table th, .items-table td {
+            border-right: 1px solid #000;
+            padding: 5px;
+            vertical-align: top;
+        }
+        .items-table th:last-child, .items-table td:last-child {
+            border-right: none;
+        }
+        
+        .items-table th {
+            border-bottom: 1px solid #000;
+            text-align: left;
+            font-weight: normal;
+        }
+
+        .items-table .td-number { text-align: right; }
+        .items-table .td-center { text-align: center; }
+
+        /* Make main table take available space to push footer down */
+        .items-table-body td {
+            height: 350px; /* Minimum height for line items area */
+        }
+        
+        /* Subtotal Rows inside the item table space */
+        .subtotal-row td {
+            border-right: none;
+            border-top: none;
+            padding: 2px 5px;
+            height: auto;
+        }
+        .border-right-only {
+            border-right: 1px solid #000 !important;
+        }
+
+        .total-hr {
+            border-top: 1px solid #000;
+            margin: 5px 0;
+            width: 100%;
+        }
+
+        /* Total Row Footer */
+        .total-row-container {
+            display: flex;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+        }
+        .total-label {
+            flex: 1;
+            padding: 5px;
+            text-align: right;
+            border-right: 1px solid #000;
+        }
+        .total-qty {
+            width: 80px; 
+            padding: 5px;
+            text-align: center;
+            border-right: 1px solid #000;
+        }
+        .total-amount-col {
+            width: 120px;
+            padding: 5px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* Footer Layout */
+        .footer-split {
+            display: flex;
+        }
+        .footer-left {
+            flex: 1;
+            border-right: 1px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+        .footer-amount-words {
+            padding: 5px;
+            border-bottom: 1px solid #000;
+        }
+        .footer-declaration {
+            padding: 5px;
+            flex-grow: 1;
+        }
+        .footer-legal {
+            text-align: center;
+            font-size: 8pt;
+            padding: 5px;
+            border-top: 1px solid #000;
+            margin-top: auto;
+        }
+
+        .footer-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 5px;
+        }
+        .bank-details {
+            font-size: 9pt;
+            line-height: 1.3;
+        }
+        .bank-details .label {
+            display: inline-block;
+            width: 100px;
+        }
+        .signatory-box {
+            margin-top: auto;
+            text-align: right;
+            font-size: 9pt;
+        }
+        .signatory-space {
+            height: 60px;
+        }
+
+        /* Width classes for Items table */
+        .col-sl { width: 30px; }
+        .col-desc { width: auto; }
+        .col-hsn { width: 70px; }
+        .col-qty { width: 60px; }
+        .col-rate-incl { width: 70px; }
+        .col-rate { width: 70px; text-align: right; }
+        .col-per { width: 40px; text-align: center; }
+        .col-disc { width: 50px; text-align: right; }
+        .col-amt { width: 100px; text-align: right; }
+
+    </style>
+</head>
+<body>
+
+<div class="page" id="invoice">
     
-    // --- Bill To & Document Details ---
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(10);
-    let y = 50;
+    <div class="invoice-wrapper">
+        
+        <!-- HEADER ROW 1 -->
+        <div class="header-title-container">
+            <div></div> <!-- Empty div to balance flex for center title -->
+            <div class="header-title">Tax Invoice</div>
+            <div class="header-original">(ORIGINAL FOR RECIPIENT)</div>
+        </div>
 
-    // Company Info (Small)
-    doc.setFont('helvetica', 'bold');
-    doc.text(businessName, margin, y);
-    doc.setFont('helvetica', 'normal');
-    if (businessAddress) {
-        y += 4;
-        const addrLines = doc.splitTextToSize(businessAddress, 80);
-        doc.text(addrLines, margin, y);
-        y += (addrLines.length * 4);
-    }
-    if (businessPhone) {
-        doc.text(`Phone: ${businessPhone}`, margin, y);
-        y += 4;
-    }
-    if (gstNumber) {
-        doc.text(`GSTIN: ${gstNumber}`, margin, y);
-        y += 6;
-    }
+        <!-- HEADER ROW 2 (Seller & Meta) -->
+        <div class="header-split">
+            <div class="seller-col">
+                <div class="seller-name" id="seller-name">Wintel Systems & Services</div>
+                <div id="seller-address">103, Amar Palace Behind Bjp Office<br>Dhantoli, Nagpur</div>
+                <div id="seller-phone">09823015709 / 09923201709</div>
+                <div>GSTIN/UIN: <span id="seller-gstin" class="font-bold">27AAQPM6844C1ZF</span></div>
+                <div>State Name : <span id="seller-state">Maharashtra</span>, Code : <span id="seller-state-code">27</span></div>
+                <div>E-Mail : <span id="seller-email">admin@wintelsystems.co.in</span></div>
+            </div>
 
-    y += 10;
-    const startBillingY = y;
+            <div class="meta-col">
+                <table class="meta-table">
+                    <tr>
+                        <td>
+                            <span class="meta-label">Invoice No.</span>
+                            <span class="meta-value font-bold" id="inv-no">64</span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Dated</span>
+                            <span class="meta-value font-bold" id="inv-date">4-Apr-26</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="meta-label">Delivery Note</span>
+                            <span class="meta-value" id="inv-delivery"></span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Mode/Terms of Payment</span>
+                            <span class="meta-value" id="inv-payment"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="meta-label">Reference No. & Date.</span>
+                            <span class="meta-value" id="inv-ref"></span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Other References</span>
+                            <span class="meta-value" id="inv-other-ref"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="meta-label">Buyer's Order No.</span>
+                            <span class="meta-value" id="inv-buyer-order"></span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Dated</span>
+                            <span class="meta-value" id="inv-buyer-order-date"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="meta-label">Dispatch Doc No.</span>
+                            <span class="meta-value" id="inv-dispatch-doc"></span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Delivery Note Date</span>
+                            <span class="meta-value" id="inv-delivery-date"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span class="meta-label">Dispatched through</span>
+                            <span class="meta-value" id="inv-dispatch-through"></span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Destination</span>
+                            <span class="meta-value" id="inv-destination"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <span class="meta-label">Terms of Delivery</span>
+                            <span class="meta-value" id="inv-terms"></span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- BUYER SECTION -->
+        <div class="buyer-section">
+            <div class="small-text">Buyer (Bill to)</div>
+            <div class="seller-name font-bold" id="buyer-name">DOT- SYSTEM</div>
+            <div id="buyer-address">SF-2 SUNRAJ BHAKAR OPP. DURGA MANDIR<br>RANAPRATAP NAGAR<br>NAGPUR</div>
+            <div>GSTIN/UIN: <span id="buyer-gstin" class="font-bold">27AGLPK6741K1ZX</span></div>
+            <div>Place of Supply: <span id="buyer-placeOfSupply">Maharashtra</span></div>
+        </div>
+
+        <!-- LINE ITEMS -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th class="col-sl td-center">Sl<br>No.</th>
+                    <th class="col-desc">Description of Goods</th>
+                    <th class="col-hsn">HSN/SAC</th>
+                    <th class="col-qty td-center">Quantity</th>
+                    <th class="col-rate-incl td-number">Rate<br><span class="small-text">(Incl. of Tax)</span></th>
+                    <th class="col-rate">Rate</th>
+                    <th class="col-per">per</th>
+                    <th class="col-disc">Disc. %</th>
+                    <th class="col-amt">Amount</th>
+                </tr>
+            </thead>
+            <tbody class="items-table-body" id="invoice-items">
+                <!-- Using a single large TR for items to let border stretch full height if necessary, 
+                     but standard HTML tables grow by row. We will mix items and empty space. -->
+                <tr>
+                    <td class="col-sl td-center">
+                        <div style="margin-bottom: 5px;">1</div>
+                        <div style="margin-bottom: 5px;">2</div>
+                    </td>
+                    <td class="col-desc font-bold">
+                        <div style="margin-bottom: 5px;">CABINET ANT ESPORTS VM 10</div>
+                        <div style="margin-bottom: 5px;">POWER SUPPLY ANT ESPORTS ECO 500</div>
+                        <br><br><br>
+                        <div class="text-right pd-right-10">OUTPUT CGST @ 9 %</div>
+                        <div class="text-right pd-right-10">OUTPUT SGST @ 9 %</div>
+                    </td>
+                    <td class="col-hsn">
+                        <div style="margin-bottom: 5px;">84733099</div>
+                        <div style="margin-bottom: 5px;">85044090</div>
+                    </td>
+                    <td class="col-qty td-center font-bold">
+                        <div style="margin-bottom: 5px;">1 NOS</div>
+                        <div style="margin-bottom: 5px;">1 NOS</div>
+                    </td>
+                    <td class="col-rate-incl td-number">
+                        <div style="margin-bottom: 5px;">1,650.01</div>
+                        <div style="margin-bottom: 5px;">750.00</div>
+                    </td>
+                    <td class="col-rate">
+                        <div style="margin-bottom: 5px;">1,398.31</div>
+                        <div style="margin-bottom: 5px;">635.59</div>
+                    </td>
+                    <td class="col-per td-center">
+                        <div style="margin-bottom: 5px;">NOS</div>
+                        <div style="margin-bottom: 5px;">NOS</div>
+                    </td>
+                    <td class="col-disc">
+                        <div style="margin-bottom: 5px;"></div>
+                        <div style="margin-bottom: 5px;"></div>
+                        <br><br><br>
+                        <div class="text-right">9 %</div>
+                        <div class="text-right">9 %</div>
+                    </td>
+                    <td class="col-amt font-bold">
+                        <div style="margin-bottom: 5px;">1,398.31</div>
+                        <div style="margin-bottom: 5px;">635.59</div>
+                        
+                        <div class="total-hr"></div>
+                        <div class="text-right" style="font-weight: normal">2,033.90</div>
+                        <div class="text-right">183.05</div>
+                        <div class="text-right">183.05</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- TOTAL ROW -->
+        <div class="total-row-container">
+            <div class="total-label">Total</div>
+            <div class="total-qty font-bold" id="total-qty-all">2 NOS</div>
+            <!-- Blank space for visual columns -->
+            <div style="flex:1;"></div>
+            <div style="flex:1;"></div>
+            <div style="flex:1;"></div>
+            <div class="total-amount-col">
+                <span style="float:left;">&#8377;</span>
+                <span id="total-grand">2,400.00</span>
+                <div class="small-text text-right" style="font-weight:normal; margin-top:2px;">E & O.E</div>
+            </div>
+        </div>
+
+        <!-- FOOTER SPLIT -->
+        <div class="footer-split">
+            <!-- Left Side -->
+            <div class="footer-left">
+                <div class="footer-amount-words">
+                    <div class="small-text">Amount Chargeable (in words)</div>
+                    <div class="font-bold" id="amount-in-words">INR Two Thousand Four Hundred Only</div>
+                </div>
+                <div class="footer-declaration">
+                    <div class="small-text">Declaration</div>
+                    <div style="font-size: 9pt;">
+                        We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                    </div>
+                </div>
+                <div class="footer-legal">
+                    SUBJECT TO NAGPUR JURISDICTION<br>
+                    This is a Computer Generated Invoice
+                </div>
+            </div>
+            
+            <!-- Right Side -->
+            <div class="footer-right">
+                <div class="small-text">Company's Bank Details</div>
+                <div class="bank-details">
+                    <div><span class="label">A/c Holder's Name :</span><span class="font-bold" id="bank-holder">Wintel Systems And Services</span></div>
+                    <div><span class="label">Bank Name :</span><span id="bank-name">CENTRAL BANK OF INDIA</span></div>
+                    <div><span class="label">A/c No. :</span><span class="font-bold" id="bank-acc">5290630760</span></div>
+                    <div><span class="label">Branch & IFS Code :</span><span id="bank-branch-ifsc">DIGHORI NAGPUR & CBIN0284431</span></div>
+                </div>
+                
+                <div class="signatory-box">
+                    <div class="font-bold">for <span id="signatory-company">Wintel Systems & Services</span></div>
+                    <div class="signatory-space">
+                        <!-- Add digital signature image here if needed -->
+                    </div>
+                    <div>Authorised Signatory</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- DATA SCRIPT PLACEHOLDER (For future dynamic population) -->
+<script>
+    // This script block is a designated place for you to push the JSON data into this template dynamically.
+    /*
+    const invoiceData = {
+        seller: { name: "", address: [], ... },
+        buyer: { ... },
+        ...
+    };
+    */
+</script>
+</body>
+</html>
+`;
+
+    const allSettings = JSON.parse(localStorage.getItem('dot_system_settings') || '{}');
+    const isQuotation = (type === 'Estimate' || type === 'Quotation');
+    const docTitle = isQuotation ? 'QUOTATION' : 'TAX INVOICE';
     
-    // Left side: Bill To
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bill To:', margin, y);
-    doc.setFont('helvetica', 'normal');
-    y += 7;
-    doc.text(`Customer ID: ${data.id || 'N/A'}`, margin, y);
-    if (data.customer || data.orgName) {
-        y += 5;
-        doc.text(data.customer || data.orgName, margin, y);
-    }
+    const bizName = allSettings.bizName || 'DOT SYSTEM';
+    const bizAddrLines = [allSettings.bizAddr || '', `${allSettings.bizCity || ''} - ${allSettings.bizPin || ''}`].filter(Boolean).join('<br>');
+    const bizPhone = allSettings.bizPhone || '';
+    const bizEmail = allSettings.bizEmail || '';
+    const bizGst = allSettings.gstNum || 'NOT PROVIDED';
     
-    // Document Details (Right)
-    let detailsY = 60;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Document Details:', pageWidth / 2 + 10, detailsY);
-    doc.setFont('helvetica', 'normal');
-    detailsY += 7;
-    const docDate = data.date || new Date().toLocaleDateString();
-    doc.text(`Date: ${docDate}`, pageWidth / 2 + 10, detailsY);
-    detailsY += 5;
-    const invNo = data.invoiceNo || `INV-${Math.floor(100000 + Math.random() * 900000)}`;
-    doc.text(`Invoice No: ${invNo}`, pageWidth / 2 + 10, detailsY);
+    // Customer
+    const customerName = data.customer || data.customerName || data.orgName || 'Cash / Walk-in Customer';
     
-    y = Math.max(y, detailsY) + 20;
+    // Invoice Meta
+    const invNo = data.invoiceNo || data.id || `INV-${Math.floor(1000 + Math.random() * 9000)}`;
+    const docDate = data.date || data.createdAt?.split(',')[0] || new Date().toLocaleDateString('en-GB');
 
-    // --- Line Items Table ---
-    const body = [];
-    let subtotal = 0;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
 
-    if (data.items && Array.isArray(data.items)) {
-        data.items.forEach(item => {
-            const qty = item.qty || 1;
-            const price = item.price || item.rate || 0;
-            const total = qty * price;
-            body.push([item.name || item.product, qty, `₹${price.toLocaleString()}`, `₹${total.toLocaleString()}`]);
-            subtotal += total;
+    const setText = (id, text) => {
+        const el = doc.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    const setHtml = (id, html) => {
+        const el = doc.getElementById(id);
+        if (el) el.innerHTML = html;
+    };
+
+    // Update Header
+    const titleEls = doc.querySelectorAll('.header-title');
+    if (titleEls.length > 0) titleEls[0].textContent = docTitle;
+    
+    const origEls = doc.querySelectorAll('.header-original');
+    if (origEls.length > 0 && isQuotation) origEls[0].style.display = 'none';
+
+    // Update Seller
+    setText('seller-name', bizName);
+    setHtml('seller-address', bizAddrLines || 'SF-2 SUNRAJ BHAKAR<br>RANAPRATAP NAGAR, NAGPUR');
+    setText('seller-phone', bizPhone || '09823015709 / 09923201709');
+    setText('seller-gstin', bizGst);
+    setText('seller-email', bizEmail || 'admin@wintelsystems.co.in');
+    
+    // Update Buyer
+    setText('buyer-name', customerName);
+    const splitAddr = (data.address || '').split(',').join('<br>'); 
+    setHtml('buyer-address', splitAddr || 'Nagpur, Maharashtra');
+    setText('buyer-gstin', data.gstin || 'NOT PROVIDED');
+
+    // Meta Table
+    setText('inv-no', invNo);
+    setText('inv-date', docDate);
+
+    // Build Line Items
+    const itemsBody = doc.getElementById('invoice-items');
+    if (itemsBody) {
+        itemsBody.innerHTML = '';
+        
+        let items = [];
+        if (data.items && Array.isArray(data.items)) {
+            items = data.items;
+        } else {
+            const desc = data.problem || data.deviceIssue || data.category || data.type || 'Service / Repair Job';
+            const rate = data.price || data.amount || data.fee || 0;
+            items.push({ name: desc, qty: 1, price: rate, hsn: '9987', rateExcl: rate, amount: rate }); 
+        }
+
+        let subtotal = 0;
+        let totalQty = 0;
+        
+        let slHtml = '';
+        let descHtml = '';
+        let hsnHtml = '';
+        let qtyHtml = '';
+        let rateInclHtml = '';
+        let rateHtml = '';
+        let perHtml = '';
+        let discHtml = '';
+        let amtHtml = '';
+        
+        items.forEach((item, index) => {
+            const qty = parseFloat(item.qty) || 1;
+            const rateExcl = parseFloat(item.price || item.rate || 0); // Base price before GST
+            const amountExcl = rateExcl * qty;
+            const priceIncl = rateExcl * 1.18; // Reverse adding 18% GST
+
+            subtotal += amountExcl;
+            totalQty += qty;
+            
+            slHtml += `<div style="margin-bottom: 5px;">${index + 1}</div>`;
+            descHtml += `<div style="margin-bottom: 5px;">${escapeHtml(item.name || item.product || item.deviceType)}</div>`;
+            hsnHtml += `<div style="margin-bottom: 5px;">${item.hsn || '84733099'}</div>`;
+            qtyHtml += `<div style="margin-bottom: 5px;">${qty} NOS</div>`;
+            rateInclHtml += `<div style="margin-bottom: 5px;">${priceIncl.toFixed(2)}</div>`;
+            rateHtml += `<div style="margin-bottom: 5px;">${rateExcl.toFixed(2)}</div>`;
+            perHtml += `<div style="margin-bottom: 5px;">NOS</div>`;
+            discHtml += `<div style="margin-bottom: 5px;"></div>`;
+            amtHtml += `<div style="margin-bottom: 5px;">${amountExcl.toFixed(2)}</div>`;
         });
-    } else {
-        const desc = data.problem || data.category || data.type || 'Service Job';
-        const amt = data.fee || data.amount || 0;
-        body.push([desc, 1, `₹${amt.toLocaleString()}`, `₹${amt.toLocaleString()}`]);
-        subtotal = amt;
+        
+        const cgst = subtotal * 0.09;
+        const sgst = subtotal * 0.09;
+        const grandTotal = Math.round(subtotal + cgst + sgst); 
+
+        descHtml += `<br><br><br><div class="text-right" style="padding-right: 10px;">OUTPUT CGST @ 9 %</div><div class="text-right" style="padding-right: 10px;">OUTPUT SGST @ 9 %</div>`;
+        discHtml += `<br><br><br><div class="text-right">9 %</div><div class="text-right">9 %</div>`;
+        
+        amtHtml += `
+            <div class="total-hr"></div>
+            <div class="text-right" style="font-weight: normal">${subtotal.toFixed(2)}</div>
+            <div class="text-right">${cgst.toFixed(2)}</div>
+            <div class="text-right">${sgst.toFixed(2)}</div>
+        `;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="col-sl td-center">${slHtml}</td>
+            <td class="col-desc font-bold">${descHtml}</td>
+            <td class="col-hsn">${hsnHtml}</td>
+            <td class="col-qty td-center font-bold">${qtyHtml}</td>
+            <td class="col-rate-incl td-number">${rateInclHtml}</td>
+            <td class="col-rate">${rateHtml}</td>
+            <td class="col-per td-center">${perHtml}</td>
+            <td class="col-disc">${discHtml}</td>
+            <td class="col-amt font-bold">${amtHtml}</td>
+        `;
+        itemsBody.appendChild(tr);
+
+        setText('total-qty-all', `${totalQty} NOS`);
+        setText('total-grand', grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}));
+        setText('amount-in-words', `INR ${numberToWords(grandTotal)} Only`);
     }
 
-    doc.autoTable({
-        startY: y,
-        head: [['Description', 'Qty', 'Unit Price', 'Total']],
-        body: body,
-        theme: 'striped',
-        headStyles: { fillColor: [15, 118, 110] }, // Teal/Cyan Accent
-        styles: { font: 'helvetica', fontSize: 10, cellPadding: 5 }
-    });
+    setText('signatory-company', bizName);
+    setText('bank-holder', bizName);
 
-    // --- Totals Section (Right Aligned) ---
-    let finalY = doc.lastAutoTable.finalY + 15;
-    const gstRate = 0.18;
-    const gstAmt = subtotal * gstRate;
-    const totalPayable = subtotal + gstAmt;
-
-    const summaryX = pageWidth - margin - 65;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Subtotal:', summaryX, finalY);
-    doc.text(`₹${subtotal.toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
-    
-    finalY += 7;
-    doc.text('GST (18%):', summaryX, finalY);
-    doc.text(`₹${gstAmt.toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
-    
-    finalY += 10;
-    doc.setFillColor(15, 118, 110, 0.1); // Light cyan highlight
-    doc.rect(summaryX - 5, finalY - 7, 70, 12, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('Total Payable:', summaryX, finalY);
-    doc.text(`₹${totalPayable.toLocaleString()}`, pageWidth - margin, finalY, { align: 'right' });
-
-    // --- Footer Disclaimers ---
-    finalY += 40;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`* ${allSettings.pdfDesc2 || 'This is a computer generated invoice. No signature required.'}`, margin, finalY);
-    doc.text(`* ${allSettings.pdfDesc1 || 'Goods once sold will not be taken back.'}`, margin, finalY + 5);
-
-    // --- Corporate Final Footer ---
-    const pdfFooterY = doc.internal.pageSize.height - 15;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('BLUEMARK Authorized Signature', pageWidth - margin, pdfFooterY, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.text('DOT System Business & Support Portal', pageWidth - margin, pdfFooterY + 5, { align: 'right' });
-
-    const fileName = `${isQuotation ? 'Quotation' : 'Invoice'}_${data.id || 'doc'}.pdf`;
-    doc.save(fileName);
-    
-    if (window.showToast) showToast(`${isQuotation ? 'Quotation' : 'Invoice'} generated successfully!`);
+    // 3. Open Print Window
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(doc.documentElement.outerHTML);
+        printWindow.document.close();
+        
+        printWindow.setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+            if (window.showToast) showToast(`${docTitle} ready for print/download!`);
+        }, 500);
+    } else {
+        alert('Please allow popups for this site to view the invoice.');
+    }
 }
 
 /**
- * Generates a professional Job Card PDF for Repair Intake.
+ * Generates a professional Job Card PDF for Repair Intake using the same template.
  * @param {Object} job - The repair job object.
  */
 function generateJobCardPDF(job) {
-    if (!window.jspdf) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    const margin = 15;
+    const itemDesc = `REPAIR: ${job.deviceType || ''} ${job.model || ''} - ${job.deviceIssue || ''}. SR No: ${job.srNo || ''}`;
+    const mappedData = {
+        id: job.id || job.srNo,
+        customerName: job.customerName,
+        date: job.createdAt?.split(',')[0],
+        items: [{
+            name: itemDesc,
+            qty: 1,
+            price: job.price || 0,
+            hsn: '998729' 
+        }]
+    };
+    generatePDF('Estimate', mappedData);
+}
 
-    // Fetch Company Settings
-    const allSettings = JSON.parse(localStorage.getItem('dot_system_settings') || '{}');
-    const bizName = allSettings.bizName || 'DOT SYSTEM';
-    const bizAddr = `${allSettings.bizAddr || ''}, ${allSettings.bizCity || ''} - ${allSettings.bizPin || ''}`;
-    const bizPhone = allSettings.bizPhone || '+91 XXXXXXXXXX';
-    const bizGst = allSettings.gstNum ? `GSTIN: ${allSettings.gstNum}` : 'GSTIN: NOT PROVIDED';
-
-    // --- Header Section ---
-    doc.setFillColor(15, 23, 42); // Dark Navy
-    doc.rect(0, 0, pageWidth, 40, 'F');
-
-    // Logo (if exists)
-    if (allSettings.logo) {
-        try {
-            doc.addImage(allSettings.logo, 'PNG', margin, 5, 30, 30);
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22);
-            doc.setFont("helvetica", "bold");
-            doc.text(bizName.toUpperCase(), margin + 35, 20);
-            doc.setFontSize(9);
-            doc.setFont("helvetica", "normal");
-            doc.text(bizAddr, margin + 35, 28);
-            doc.text(`Contact: ${bizPhone} | ${bizGst}`, margin + 35, 34);
-        } catch (e) {
-            console.error('Logo render failed', e);
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.setFont("helvetica", "bold");
-            doc.text(bizName.toUpperCase(), margin, 20);
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text(bizAddr, margin, 28);
-            doc.text(`Contact: ${bizPhone} | ${bizGst}`, margin, 34);
-        }
-    } else {
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.setFont("helvetica", "bold");
-        doc.text(bizName.toUpperCase(), margin, 20);
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(bizAddr, margin, 28);
-        doc.text(`Contact: ${bizPhone} | ${bizGst}`, margin, 34);
-    }
-
-    // BLUEMARK Badge
-    if (allSettings.showBadge !== false) {
-        doc.setFillColor(16, 185, 129); // Green
-        doc.roundedRect(pageWidth - 55, 12, 40, 18, 2, 2, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text("BLUEMARK", pageWidth - 35, 22, { align: 'center' });
-        doc.setFontSize(7);
-        doc.text("AUTHORIZED", pageWidth - 35, 26, { align: 'center' });
-    }
-
-    // --- Title ---
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.text("REPAIR JOB CARD", pageWidth / 2, 55, { align: 'center' });
-    doc.setDrawColor(0, 180, 219);
-    doc.setLineWidth(1);
-    doc.line(pageWidth / 2 - 25, 58, pageWidth / 2 + 25, 58);
-
-    // --- Info Grid ---
-    doc.setFontSize(11);
-    doc.setTextColor(50, 50, 50);
-    
-    // Left Column: Customer
-    doc.setFont("helvetica", "bold");
-    doc.text("CUSTOMER DETAILS", margin, 75);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Name: ${job.customerName}`, margin, 82);
-    doc.text(`Phone: +91 ${job.phone}`, margin, 88);
-    
-    // Right Column: Job Info
-    doc.setFont("helvetica", "bold");
-    doc.text("JOB SPECIFICATIONS", pageWidth / 2 + 10, 75);
-    doc.setFont("helvetica", "normal");
-    doc.text(`SR No: ${job.srNo}`, pageWidth / 2 + 10, 82);
-    doc.text(`Date: ${job.createdAt?.split(',')[0]}`, pageWidth / 2 + 10, 88);
-    doc.text(`Est. Completion: ${job.estCompletion || 'N/A'}`, pageWidth / 2 + 10, 94);
-
-    // --- Device Details Table ---
-    doc.autoTable({
-        startY: 105,
-        head: [['Device Type', 'Model / Serial', 'Reported Problem']],
-        body: [[job.deviceType, job.model || 'N/A', job.deviceIssue]],
-        theme: 'grid',
-        headStyles: { fillColor: [0, 180, 219], textColor: 255 },
-        styles: { fontSize: 10, cellPadding: 6 }
+// Helper functions for template injection
+function escapeHtml(unsafe) {
+    if (!unsafe) return "";
+    return unsafe.toString().replace(/[&<"'>]/g, function (m) {
+        return { '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#39;', '>': '&gt;' }[m];
     });
+}
 
-    // --- Estimate & Notes ---
-    let finalY = doc.lastAutoTable.finalY + 15;
-    doc.setFont("helvetica", "bold");
-    doc.text("ESTIMATED QUOTE:", margin, finalY);
-    doc.setFontSize(14);
-    doc.setTextColor(0, 180, 219);
-    doc.text(`₹${(job.price || 0).toLocaleString()}`, margin + 45, finalY);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(50, 50, 50);
-    doc.setFont("helvetica", "bold");
-    doc.text("Notes:", margin, finalY + 12);
-    doc.setFont("helvetica", "normal");
-    const splitNotes = doc.splitTextToSize(job.comment || "No specific instructions provided.", pageWidth - 2 * margin);
-    doc.text(splitNotes, margin, finalY + 18);
-
-    // --- Terms & Conditions ---
-    finalY += 45;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("TERMS & CONDITIONS:", margin, finalY);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("1. Any hardware issue found during repair will be charged extra.", margin, finalY + 6);
-    doc.text("2. Data backup is the responsibility of the customer. We are not liable for data loss.", margin, finalY + 11);
-    doc.text("3. Estimate valid for 7 days. Devices not collected within 30 days will be disposed of.", margin, finalY + 16);
-
-    // --- Signatures ---
-    finalY += 50;
-    doc.setDrawColor(200);
-    doc.line(margin, finalY, margin + 60, finalY);
-    doc.line(pageWidth - margin - 60, finalY, pageWidth - margin, finalY);
-    
-    doc.text("Customer Signature", margin + 10, finalY + 5);
-    doc.text("Authorized Center", pageWidth - margin - 50, finalY + 5);
-
-    // Watermark
-    doc.setTextColor(240, 240, 240);
-    doc.setFontSize(40);
-    doc.text("DOT SYSTEM INTAKE", pageWidth / 2, doc.internal.pageSize.height / 2, { align: 'center', angle: 45 });
-
-    doc.save(`JobCard_${job.srNo}.pdf`);
-    if (window.showToast) showToast(`Job Card for ${job.srNo} generated!`);
+function numberToWords(num) {
+    const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+    const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+    if ((num = num.toString()).length > 9) return 'overflow';
+    const n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return '';
+    let str = '';
+    str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+    str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+    str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+    str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+    str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+    return str.trim() || 'Zero';
 }
 
 
@@ -753,7 +1119,7 @@ function renderSparkline(container, data, color = '#3b82f6') {
     container.appendChild(canvas);
     
     // Add tooltip with data values
-    container.title = `7-Day Sales Trend: ${data.join(' → ')}`;
+    container.title = `7-Day Sales Trend: ${data.join(' â†’ ')}`;
     container.style.cursor = 'help';
 }
 
@@ -860,7 +1226,7 @@ function initGlobalFeatures() {
                 <div class="cmd-results" id="cmdResults">
                 </div>
                 <div style="padding: 0.5rem 1.5rem; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
-                    <span><kbd>↑</kbd> <kbd>↓</kbd> to navigate</span>
+                    <span><kbd>â†‘</kbd> <kbd>â†“</kbd> to navigate</span>
                     <span><kbd>Enter</kbd> to select</span>
                     <span><kbd>Esc</kbd> to close</span>
                 </div>
