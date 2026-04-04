@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Calendar | DOT System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .calendar-day {
+            background: var(--card-bg);
+            min-height: 120px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        .calendar-day.today {
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .calendar-header-day {
+            background: rgba(15, 23, 42, 0.8);
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+        .day-number {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+        }
+        .today .day-number {
+            color: var(--primary);
+            opacity: 1;
+        }
+        .event-dot {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .event-dot:hover {
+            transform: scale(1.05);
+            filter: brightness(1.2);
+        }
+        
+        .calendar-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .day-past {
+            opacity: 0.5;
+            filter: grayscale(0.5);
+        }
+        
+        .event-detail-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            border-radius: 12px;
+            z-index: 1000;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            display: none;
+            width: 90%;
+            max-width: 400px;
+        }
+        .event-detail-popup.active { display: block; }
+        .popup-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 999;
+            display: none;
+        }
+        .popup-overlay.active { display: block; }
+    </style>
+</head>
+<body>
+    <!-- Premium Preloader -->
+    <div class="preloader-overlay" id="preloader">
+        <div class="loader-container">
+            <svg class="loader-svg" viewBox="0 0 100 100">
+                <path class="trace-bg" d="M10 50 L90 50 M50 10 L50 90 M25 25 L75 75 M75 25 L25 75" />
+                <path class="trace-flow cyan-trace" d="M10 50 L90 50" style="animation-delay: -0.5s;" />
+                <path class="trace-flow blue-trace" d="M50 10 L50 90" style="animation-delay: -1.2s;" />
+                <path class="trace-flow cyan-trace" d="M25 25 L75 75" style="animation-delay: -0.8s;" />
+                <rect class="chip-body" x="30" y="35" width="40" height="30" />
+                <text x="50" y="52" text-anchor="middle" class="chip-text">PLAN</text>
+            </svg>
+            <div class="loader-tag">Mapping Timeline</div>
+        </div>
+    </div>
+
+    <div class="background-effect"></div>
+    
+    <div class="container" style="max-width: 1400px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-calendar-days text-cyan"></i> Business Calendar</h1>
+                    <p>Timeline for deliveries, AMC visits, and renewals.</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt" title="Transaction Ledger">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="repair-jobs.html" class="nav-btn-alt" title="Repairs">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span>Repairs</span>
+                    </a>
+                    <a href="employees.html" class="nav-btn-alt" title="Staff Management">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Staff</span>
+                    </a>
+                    <a href="amc-management.html" class="nav-btn-alt" title="AMC Management">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>AMC</span>
+                    </a>
+                    <a href="service-visits.html" class="nav-btn-alt" title="Service Visits">
+                        <i class="fa-solid fa-car-side"></i>
+                        <span>Visits</span>
+                    </a>
+                </nav>
+
+            </div>
+
+            <div class="header-system">
+                <div class="system-tools">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" title="Toggle Light/Dark Mode">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider">
+                                <span class="star star_1"></span>
+                                <span class="star star_2"></span>
+                                <span class="star star_3"></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="cloud">
+                                    <path d="M17.5,19c-3.037,0-5.5-2.463-5.5-5.5c0-0.08,0.002-0.16,0.006-0.24C11.391,13.042,10.71,13,10,13c-2.761,0-5,2.239-5,5s2.239,5,5,5h7.5c2.485,0,4.5-2.015,4.5-4.5S19.985,14,17.5,14c-0.198,0-0.392,0.013-0.582,0.038C16.962,14.013,17,14,17,14c0-2.209-1.791-4-4-4c-0.246,0-0.485,0.022-0.717,0.065C12.115,10.023,12,10,12,10c-2.761,0-5,2.239-5,5c0,0.113,0.005,0.224,0.014,0.334C6.425,15.131,5.748,15,5,15c-2.209,0-4,1.791-4,4s1.791,4,4,4H17.5z"></path>
+                                </svg>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+                    <!-- Bell placeholder if needed or just toggle -->
+                </div>
+            </div>
+        </header>
+
+        <section class="glass-card fade-in" style="padding: 2rem;">
+            <div class="calendar-nav">
+                <h2 id="currentMonthYear">March 2026</h2>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button class="btn btn-primary" onclick="jumpToToday()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Today</button>
+                    <button class="btn btn-secondary" onclick="toggleView()" id="viewToggleBtn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;"><i class="fa-solid fa-list-ul"></i> Week</button>
+                    <button class="btn btn-outline" onclick="prevStep()"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="btn btn-outline" onclick="nextStep()"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+                <!-- Headers -->
+                <div class="calendar-header-day">Sun</div>
+                <div class="calendar-header-day">Mon</div>
+                <div class="calendar-header-day">Tue</div>
+                <div class="calendar-header-day">Wed</div>
+                <div class="calendar-header-day">Thu</div>
+                <div class="calendar-header-day">Fri</div>
+                <div class="calendar-header-day">Sat</div>
+                
+                <!-- Days will be injected here -->
+            </div>
+        </section>
+        <div class="bluemark-signature" style="margin-top: 1rem; position: static; justify-content: flex-end; opacity: 0.4;">
+            <i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized
+        </div>
+    </div>
+
+    <!-- Event Detail Popup -->
+    <div class="popup-overlay" id="popupOverlay" onclick="closePopup()"></div>
+    <div class="event-detail-popup" id="eventPopup">
+        <h3 id="popupTitle" style="margin-bottom: 0.5rem; color: var(--accent);">Event Details</h3>
+        <p id="popupDate" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">Date</p>
+        <p id="popupContent" style="font-size: 0.95rem; line-height: 1.5;">Details go here...</p>
+        <button class="btn btn-outline w-full" onclick="closePopup()" style="margin-top: 2rem;">Close</button>
+    </div>
+
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script src="theme-system.js"></script>
+    <script>
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let currentView = 'month';
+        let currentWeekStart = getStartOfWeek(new Date());
+
+        function getStartOfWeek(d) {
+            const date = new Date(d);
+            const day = date.getDay();
+            const diff = date.getDate() - day; // Adjust to Sunday
+            return new Date(date.setDate(diff));
+        }
+
+        function toggleView() {
+            currentView = currentView === 'month' ? 'week' : 'month';
+            document.getElementById('viewToggleBtn').innerHTML = currentView === 'month' ? '<i class="fa-solid fa-list-ul"></i> Week' : '<i class="fa-solid fa-calendar"></i> Month';
+            renderCalendar();
+        }
+
+        function jumpToToday() {
+            currentMonth = new Date().getMonth();
+            currentYear = new Date().getFullYear();
+            currentWeekStart = getStartOfWeek(new Date());
+            renderCalendar();
+        }
+
+        function prevStep() {
+            if (currentView === 'month') { 
+                currentMonth--; if(currentMonth<0){currentMonth=11; currentYear--}
+            } else {
+                currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            }
+            renderCalendar();
+        }
+
+        function nextStep() {
+            if (currentView === 'month') { 
+                currentMonth++; if(currentMonth>11){currentMonth=0; currentYear++}
+            } else {
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            }
+            renderCalendar();
+        }
+        
+        // --- Drag and Drop Logic ---
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev, id) {
+            ev.dataTransfer.setData("text", id);
+        }
+
+        function drop(ev, targetDateStr) {
+            ev.preventDefault();
+            const visitId = ev.dataTransfer.getData("text");
+            if (!visitId) return;
+
+            let nonAmcCalls = JSON.parse(localStorage.getItem('tally_non_amc_calls')) || [];
+            const idx = nonAmcCalls.findIndex(v => v.id === visitId);
+            if (idx !== -1) {
+                const d = new Date(targetDateStr);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                nonAmcCalls[idx].date = `${year}-${month}-${day}`;
+                localStorage.setItem('tally_non_amc_calls', JSON.stringify(nonAmcCalls));
+                renderCalendar();
+                if(window.showToast) showToast('Visit rescheduled to ' + targetDateStr);
+            }
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const monthYearLabel = document.getElementById('currentMonthYear');
+            
+            grid.innerHTML = '';
+            
+            const repairs = JSON.parse(localStorage.getItem('tally_repair_jobs')) || [];
+            const amcs = JSON.parse(localStorage.getItem('hardware_sync_amc')) || [];
+            const nonAmcCalls = JSON.parse(localStorage.getItem('tally_non_amc_calls')) || [];
+
+            if (currentView === 'month') {
+                grid.style.display = 'grid';
+                grid.style.gridTemplateColumns = 'repeat(7, 1fr)';
+                grid.style.overflowY = 'visible';
+                grid.style.height = 'auto';
+
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                days.forEach(d => {
+                    grid.innerHTML += `<div class="calendar-header-day">${d}</div>`;
+                });
+
+                const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                const monthName = new Date(currentYear, currentMonth).toLocaleString('default', { month: 'long' });
+                
+                monthYearLabel.textContent = `${monthName} ${currentYear}`;
+
+                for (let i = 0; i < firstDay; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'calendar-day';
+                    div.style.opacity = '0.2';
+                    grid.appendChild(div);
+                }
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'calendar-day';
+                    const date = new Date(currentYear, currentMonth, d);
+                    const dateStr = date.toLocaleDateString();
+                    const isPast = date < new Date().setHours(0,0,0,0);
+                    
+                    if (isPast) dayDiv.classList.add('day-past');
+                    if (new Date().toDateString() === date.toDateString()) {
+                        dayDiv.classList.add('today');
+                    }
+
+                    dayDiv.setAttribute('ondragover', 'allowDrop(event)');
+                    dayDiv.setAttribute('ondrop', `drop(event, '${dateStr}')`);
+
+                    dayDiv.innerHTML = `<div class="day-number">${d}</div>`;
+                    dayDiv.innerHTML += generateEventsHtml(date, dateStr, repairs, amcs, nonAmcCalls);
+                    grid.appendChild(dayDiv);
+                }
+            } else {
+                // WEEK VIEW
+                grid.style.display = 'grid';
+                grid.style.gridTemplateColumns = '60px repeat(7, 1fr)';
+                grid.style.overflowY = 'auto';
+                grid.style.height = '600px';
+                
+                const endOfWeek = new Date(currentWeekStart);
+                endOfWeek.setDate(endOfWeek.getDate() + 6);
+                
+                const startStr = currentWeekStart.toLocaleString('default', { month: 'short', day: 'numeric' });
+                const endStr = endOfWeek.toLocaleString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+                monthYearLabel.textContent = `${startStr} - ${endStr}`;
+                
+                // Header Row
+                grid.innerHTML += `<div class="calendar-header-day" style="background: transparent; min-height: 50px;">GMT<br>+5:30</div>`;
+                for (let i = 0; i < 7; i++) {
+                    const tempDate = new Date(currentWeekStart);
+                    tempDate.setDate(tempDate.getDate() + i);
+                    const isToday = tempDate.toDateString() === new Date().toDateString();
+                    grid.innerHTML += `<div class="calendar-header-day ${isToday ? 'today' : ''}" style="${isToday ? 'color: var(--primary);' : ''}">${tempDate.toLocaleString('default', { weekday: 'short' })}<br>${tempDate.getDate()}</div>`;
+                }
+
+                // Hours (9 AM to 6 PM)
+                for (let h = 9; h <= 18; h++) {
+                    const ampm = h >= 12 ? 'PM' : 'AM';
+                    const displayH = h > 12 ? h - 12 : h;
+                    grid.innerHTML += `<div style="text-align: right; padding: 0.5rem; font-size: 0.75rem; color: var(--text-muted); border-right: 1px solid var(--border); border-bottom: 1px solid rgba(255,255,255,0.05);">${displayH} ${ampm}</div>`;
+                    
+                    for (let d = 0; d < 7; d++) {
+                        const cellDate = new Date(currentWeekStart);
+                        cellDate.setDate(cellDate.getDate() + d);
+                        const dateStr = cellDate.toLocaleDateString();
+                        
+                        let eventsHtml = '';
+                        if (h === 9) { // all day events essentially dumped at 9 AM for simplicity
+                            eventsHtml = generateEventsHtml(cellDate, dateStr, repairs, amcs, nonAmcCalls);
+                        }
+                        
+                        grid.innerHTML += `<div style="border-bottom: 1px solid rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05); padding: 0.25rem; min-height: 50px;" ondragover="allowDrop(event)" ondrop="drop(event, '${dateStr}')">
+                            ${eventsHtml}
+                        </div>`;
+                    }
+                }
+            }
+        }
+
+        function generateEventsHtml(date, dateStr, repairs, amcs, nonAmcCalls) {
+            let html = '';
+            
+            // Add Repairs (Delivery)
+            repairs.filter(j => {
+                if (!j.estCompletion) return false;
+                return new Date(j.estCompletion).toDateString() === date.toDateString();
+            }).forEach(j => {
+                    html += `<div class="event-dot event-repair" onclick="showDetail('${j.deviceIssue} (SR: ${j.srNo || j.id})', 'Repair Delivery', '${dateStr}')" title="Repair: ${j.customerName}">🛠️ ${j.deviceType || 'Device'}</div>`;
+            });
+
+            // Add AMC Service Visits
+            amcs.forEach(amc => {
+                const isNextService = amc.nextServiceDate && new Date(amc.nextServiceDate).toDateString() === date.toDateString();
+                const start = new Date(amc.startDate);
+                const diffTime = Math.abs(date - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const isRecurringService = !amc.nextServiceDate && (diffDays % 90 === 0 && date >= start);
+
+                if ((isNextService || isRecurringService) && date <= new Date(amc.endDate)) {
+                    html += `<div class="event-dot event-amc" onclick="showDetail('Quarterly maintenance for ${amc.orgName}', 'AMC Service', '${dateStr}')" title="AMC Service: ${amc.orgName}">🛡️ Service: ${amc.orgName.substring(0,6)}..</div>`;
+                }
+                
+                // Contract Expiry
+                if (new Date(amc.endDate).toDateString() === date.toDateString()) {
+                    html += `<div class="event-dot event-expiry" onclick="showDetail('AMC Contract expires today for ${amc.orgName}', 'Contract Expiry', '${dateStr}')" title="AMC EXPIRES TODAY: ${amc.orgName}">⚠️ EXPIRES: ${amc.orgName}</div>`;
+                }
+            });
+
+            // Add Non-AMC Service Visits (Draggable)
+            nonAmcCalls.filter(v => {
+                const vDate = new Date(v.date);
+                return vDate.toDateString() === date.toDateString();
+            }).forEach(v => {
+                html += `<div class="event-dot event-non-amc" draggable="true" ondragstart="drag(event, '${v.id}')" onclick="showDetail('${v.problem}', 'Non-AMC Visit', '${dateStr}')" title="Non-AMC Visit: ${v.customerName}">🔸 ${v.customerName.substring(0,8)}..</div>`;
+            });
+            
+            return html;
+        }
+
+        function showDetail(title, category, date) {
+            document.getElementById('popupTitle').innerHTML = `<i class="fa-solid fa-circle-info"></i> ${category}`;
+            document.getElementById('popupDate').textContent = date;
+            document.getElementById('popupContent').textContent = title;
+            document.getElementById('eventPopup').classList.add('active');
+            document.getElementById('popupOverlay').classList.add('active');
+        }
+
+        function closePopup() {
+            document.getElementById('eventPopup').classList.remove('active');
+            document.getElementById('popupOverlay').classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', renderCalendar);
+    </script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

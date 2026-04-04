@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Visits | DOT System</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .status-scheduled { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .status-onsite { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; border: 1px solid rgba(139, 92, 246, 0.3); }
+        .status-resolved { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-paid { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        .visit-badge {
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .visit-badge:hover { filter: brightness(1.2); }
+
+        .type-badge {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+
+        .revenue-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="preloader-overlay" id="preloader">
+        <div class="loader-container">
+            <svg class="loader-svg" viewBox="0 0 100 100">
+                <path class="trace-bg" d="M10 50 L90 50 M50 10 L50 90 M25 25 L75 75 M75 25 L25 75" />
+                <path class="trace-flow cyan-trace" d="M10 50 L90 50" style="animation-delay: -0.5s;" />
+                <path class="trace-flow blue-trace" d="M50 10 L50 90" style="animation-delay: -1.2s;" />
+                <rect class="chip-body" x="30" y="35" width="40" height="30" />
+                <text x="50" y="52" text-anchor="middle" class="chip-text">VISIT</text>
+            </svg>
+            <div class="loader-tag">Initializing Visits</div>
+        </div>
+    </div>
+
+    <div class="background-effect"></div>
+    <div class="container" style="max-width: 1400px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-car-side text-cyan"></i> Service Visits</h1>
+                    <p>Track ad-hoc visits, on-site repairs, and remote support.</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="repair-jobs.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span>Repairs</span>
+                    </a>
+                    <a href="employees.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Staff</span>
+                    </a>
+                    <a href="amc-management.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>AMC</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                </nav>
+
+            </div>
+            <div class="header-system">
+                <div class="system-tools">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Insights KPI Section -->
+        <div class="kpi-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <!-- Revenue KPI -->
+            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Service Revenue</span>
+                    <h3 id="statVisitRevenue" style="font-size: 2rem; font-weight: 800; color: #10b981; margin-top: 0.5rem;">₹0</h3>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.1); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #10b981;">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            
+            <!-- Tech Performance Table -->
+            <div class="insight-card glass-card" style="padding: 1.25rem; overflow-y: auto; max-height: 120px;">
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Top Technicians</span>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted);">
+                            <th style="text-align: left; padding-bottom: 0.3rem;">Technician</th>
+                            <th style="text-align: center; padding-bottom: 0.3rem;">Visits</th>
+                            <th style="text-align: right; padding-bottom: 0.3rem;">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody id="techPerformanceBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Heatmap -->
+            <div class="insight-card glass-card" style="padding: 1.25rem;">
+                 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Visit Activity (Last 28 Days)</span>
+                 <div id="visitHeatmap" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 0.8rem;">
+                     <!-- 28 squares injected via JS -->
+                 </div>
+            </div>
+        </div>
+
+        <main class="dashboard-grid">
+            <!-- Left: Log Form -->
+            <section class="forms-col">
+                <div class="glass-card">
+                    <h2><i class="fa-solid fa-file-signature"></i> New Service Visit</h2>
+                    <form id="visitForm">
+                        <div class="form-group">
+                            <label for="customerName" style="display: flex; justify-content: space-between; align-items: center;">
+                                Customer / Organization
+                                <span id="amcBadge" style="font-size: 0.75rem; background: var(--primary); color: #fff; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold; display: none;">AMC ACTIVE</span>
+                            </label>
+                            <input type="text" id="customerName" placeholder="e.g. John Doe / Apex Corp" required>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="visitType">Visit Type</label>
+                                <select id="visitType" required>
+                                    <option value="On-Site Visit">On-Site Visit</option>
+                                    <option value="Remote Support">Remote Support</option>
+                                    <option value="Workshop Repair">Workshop Repair</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Problem Category</label>
+                                <select id="category" required>
+                                    <option value="Networking">Networking</option>
+                                    <option value="OS Reinstall">OS Reinstall</option>
+                                    <option value="Printer Issue">Printer Issue</option>
+                                    <option value="Hardware Fail">Hardware Failure</option>
+                                    <option value="Software/Virus">Software / Virus</option>
+                                    <option value="CCTV/Biometric">CCTV / Biometric</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="visitDate">Date</label>
+                                <input type="date" id="visitDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="technician">Assign Technician</label>
+                                <select id="technician" required>
+                                    <option value="" disabled selected>Loading staff...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="serviceCharge">Service Charge (₹)</label>
+                            <input type="text" id="serviceCharge" data-currency placeholder="e.g. 1,500" required>
+                            <div class="revenue-toggle">
+                                <input type="checkbox" id="trackInPayroll" checked>
+                                <label for="trackInPayroll">Track as technician revenue in Payroll</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="visitProblem">Problem Details</label>
+                            <textarea id="visitProblem" placeholder="Detailed description of the issue..." required style="min-height: 80px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-full">
+                            <i class="fa-solid fa-calendar-plus"></i> Schedule Visit
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right: Visit History -->
+            <section class="amc-list-section">
+                <div class="glass-card">
+                    <div class="section-header" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <h2><i class="fa-solid fa-list-check"></i> Service Visit History</h2>
+                            <span id="totalVisits" class="badge">0 Visits</span>
+                        </div>
+                        <div class="search-container" style="position: relative; width: 250px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+                            <input type="text" id="visitSearch" placeholder="Search by Client or Tech..." style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.22rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; transition: all 0.3s; font-size: 0.85rem;" oninput="filterVisits()">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Details</th>
+                                    <th>Technician</th>
+                                    <th>Fee</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="visitHistoryList">
+                                <tr id="emptyVisitRow">
+                                    <td colspan="6" style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                                        <i class="fa-solid fa-calendar-xmark" style="font-size: 2rem; display: block; margin-bottom: 1rem;"></i>
+                                        No recent service visits logged.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script src="service-visits-script.js"></script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMC Management | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        textarea:focus { border-color: var(--primary); }
+
+        select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            appearance: none;
+            outline: none;
+        }
+
+        @media (max-width: 1000px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Asset Row Styling */
+        .asset-row {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+        .asset-row:hover {
+            border-color: var(--accent);
+            background: rgba(6, 182, 212, 0.05);
+        }
+        .asset-row input {
+            background: transparent;
+            border: none;
+            padding: 0.5rem;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+        .asset-row input:focus {
+            outline: none;
+            color: var(--accent);
+        }
+        .asset-row .asset-qty {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* AMC Asset Table in Cards */
+        .amc-assets {
+            background: rgba(15, 23, 42, 0.4);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .amc-assets::-webkit-scrollbar {
+            width: 4px;
+        }
+        .amc-assets::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+        /* Maintenance Log Styles */
+        .maintenance-log {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--border);
+        }
+        .log-header {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .log-list {
+            list-style: none;
+            padding: 0;
+            font-size: 0.85rem;
+        }
+        .log-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+            color: var(--text-muted);
+        }
+        .service-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Premium Preloader -->
+    <div class="preloader-overlay" id="preloader">
+        <div class="loader-container">
+            <svg class="loader-svg" viewBox="0 0 100 100">
+                <path class="trace-bg" d="M10 50 L90 50 M50 10 L50 90 M25 25 L75 75 M75 25 L25 75" />
+                <path class="trace-flow cyan-trace" d="M10 50 L90 50" style="animation-delay: -0.5s;" />
+                <path class="trace-flow blue-trace" d="M50 10 L50 90" style="animation-delay: -1.2s;" />
+                <path class="trace-flow cyan-trace" d="M25 25 L75 75" style="animation-delay: -0.8s;" />
+                <rect class="chip-body" x="30" y="35" width="40" height="30" />
+                <text x="50" y="52" text-anchor="middle" class="chip-text">AMC</text>
+            </svg>
+            <div class="loader-tag">Syncing Contracts</div>
+        </div>
+    </div>
+
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+    
+    <div class="container" style="max-width: 1500px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-building-shield text-cyan"></i> AMC Management</h1>
+                    <p>Manage B2B service contracts and maintenance schedules.</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt" title="Transaction Ledger">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="repair-jobs.html" class="nav-btn-alt" title="Repairs">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span>Repairs</span>
+                    </a>
+                    <a href="employees.html" class="nav-btn-alt" title="Staff Management">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Staff</span>
+                    </a>
+                    <a href="service-visits.html" class="nav-btn-alt" title="Service Visits">
+                        <i class="fa-solid fa-car-side"></i>
+                        <span>Visits</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                </nav>
+
+            </div>
+
+            <div class="header-system">
+                <div class="system-tools">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" title="Toggle Light/Dark Mode">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider">
+                                <span class="star star_1"></span>
+                                <span class="star star_2"></span>
+                                <span class="star star_3"></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="cloud">
+                                    <path d="M17.5,19c-3.037,0-5.5-2.463-5.5-5.5c0-0.08,0.002-0.16,0.006-0.24C11.391,13.042,10.71,13,10,13c-2.761,0-5,2.239-5,5s2.239,5,5,5h7.5c2.485,0,4.5-2.015,4.5-4.5S19.985,14,17.5,14c-0.198,0-0.392,0.013-0.582,0.038C16.962,14.013,17,14,17,14c0-2.209-1.791-4-4-4c-0.246,0-0.485,0.022-0.717,0.065C12.115,10.023,12,10,12,10c-2.761,0-5,2.239-5,5c0,0.113,0.005,0.224,0.014,0.334C6.425,15.131,5.748,15,5,15c-2.209,0-4,1.791-4,4s1.791,4,4,4H17.5z"></path>
+                                </svg>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+
+                    <!-- Notification Bell -->
+                    <div class="notification-container">
+                        <div class="notification-bell" id="notifBell">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="notification-badge" id="notifBadge">0</span>
+                        </div>
+                        <div class="notification-dropdown" id="notifDropdown">
+                            <div class="notification-header">
+                                <span>Notifications</span>
+                                <span style="font-size: 0.75rem; opacity: 0.7;">Alerts</span>
+                            </div>
+                            <div class="notification-list" id="notifList">
+                                <div class="notification-empty">No new alerts.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <!-- Left: Entry Form -->
+            <section class="forms-col">
+                <div class="glass-card">
+                    <h2><i class="fa-solid fa-file-contract"></i> New AMC Entry</h2>
+                    <form id="amcForm">
+                        <div class="form-group">
+                            <label for="orgName" style="display: flex; justify-content: space-between; align-items: center;">
+                                Organization Name
+                                <span id="crmIndicator" style="font-size: 0.75rem; background: var(--accent); color: var(--bg-dark); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold; display: none;">REPEAT ORG</span>
+                            </label>
+                            <input type="text" id="orgName" placeholder="e.g. HDFC Bank Ltd" required>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="contactPerson">Contact Person</label>
+                                <input type="text" id="contactPerson" placeholder="e.g. Rahul Sharma" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Contact Phone</label>
+                                <input type="tel" id="phone" placeholder="e.g. 9876543210" required>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="startDate">Start Date</label>
+                                <input type="date" id="startDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="endDate">End Date</label>
+                                <input type="date" id="endDate" required>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="payCycle">Payment Cycle</label>
+                                <select id="payCycle" required>
+                                    <option value="Monthly">Monthly</option>
+                                    <option value="Quarterly">Quarterly</option>
+                                    <option value="Half-Yearly">Half-Yearly</option>
+                                    <option value="Annually" selected>Annually</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="amcType">AMC Type</label>
+                                <select id="amcType" required>
+                                    <option value="Comprehensive">Comprehensive (Parts)</option>
+                                    <option value="Non-Comprehensive">Non-Comprehensive (Labor)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="amcAmount">Contract Amount (₹)</label>
+                            <input type="text" id="amcAmount" data-currency placeholder="e.g. 50,000" required>
+
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                                Assets Covered
+                                <button type="button" id="addAssetBtn" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                                    <i class="fa-solid fa-plus"></i> Add Row
+                                </button>
+                            </label>
+                            <div id="assetListContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <!-- Asset rows injected here -->
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-full" style="margin-top: 1rem;">
+                            <i class="fa-solid fa-plus-circle"></i> Activate AMC
+                        </button>
+                        <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+                    </form>
+                </div>
+
+                <div class="glass-card" style="margin-top: 2rem;">
+                    <h2><i class="fa-solid fa-headset"></i> Log Service Call</h2>
+                    <form id="serviceCallForm">
+                        <div class="form-group">
+                            <label for="callOrg">Select Organization</label>
+                            <select id="callOrg" required>
+                                <option value="" disabled selected>Choose an active AMC...</option>
+                            </select>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="callDate">Date</label>
+                                <input type="date" id="callDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="callTech">Assign Technician</label>
+                                <select id="callTech" required>
+                                    <option value="" disabled selected>Loading staff...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="callProblem">Problem Reported</label>
+                            <textarea id="callProblem" placeholder="Describe the issue..." required style="min-height: 60px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="callNotes">Internal Notes (Optional)</label>
+                            <textarea id="callNotes" placeholder="Parts used, status updates..." style="min-height: 60px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-full">
+                            <i class="fa-solid fa-clipboard-check"></i> Log Call
+                        </button>
+                        <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right: AMC History & Cards -->
+            <section class="amc-list-section">
+                <div class="section-header" style="justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <h2><i class="fa-solid fa-shield-halved"></i> Active Contracts</h2>
+                        <span id="totalAmcs" class="badge">0 Active</span>
+                    </div>
+                    <div class="search-container" style="position: relative; width: 250px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+                        <input type="text" id="amcGridSearch" placeholder="Search by Org Name..." style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.22rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; transition: all 0.3s; font-size: 0.85rem;" oninput="filterAmcGrid()">
+                    </div>
+                </div>
+                
+                <div id="amcGrid" class="amc-grid">
+                    <!-- Cards will be injected here -->
+                </div>
+
+                <!-- Expired Contracts Section -->
+                <div class="expired-section-header" style="margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2rem; display: none;" id="expiredHeader">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <h2 style="color: var(--danger);"><i class="fa-solid fa-calendar-xmark"></i> Expired Contracts</h2>
+                        <span id="totalExpiredAmcs" class="badge" style="background: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.2);">0 Expired</span>
+                    </div>
+                </div>
+                <div id="expiredAmcGrid" class="amc-grid">
+                    <!-- Expired cards injected here -->
+                </div>
+
+                <!-- Service History Table -->
+                <div class="glass-card" style="margin-top: 3rem;">
+                    <div class="section-header" style="justify-content: space-between;">
+                        <h2><i class="fa-solid fa-clock-rotate-left"></i> Service History</h2>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="search-container" style="position: relative; width: 200px;">
+                                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                                <input type="text" id="amcSearch" placeholder="Search calls..." style="width: 100%; padding: 0.5rem 0.8rem 0.5rem 2rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 6px; color: #fff; outline: none; font-size: 0.8rem;" oninput="filterAmcHistory()">
+                            </div>
+                            <span id="historyFilterTag" class="badge" style="display: none; background: var(--primary);">Filtered</span>
+                            <button id="clearHistoryFilter" class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; display: none;">Show All</button>
+                            <span id="totalCalls" class="badge">0 Calls</span>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Organization</th>
+                                    <th>Date</th>
+                                    <th>Technician</th>
+                                    <th>Problem</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="serviceHistoryList">
+                                <!-- Logs injected here -->
+                                <tr id="emptyHistoryRow">
+                                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                                        No service history available.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="amc-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+    </script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

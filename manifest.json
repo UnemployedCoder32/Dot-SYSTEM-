@@ -1,0 +1,20 @@
+{
+  "name": "DOT System - Inventory & Repairs",
+  "short_name": "DOT System",
+  "description": "Premium Inventory and Repair Management for Tally Prime.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "app-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "orientation": "any",
+  "scope": "./",
+  "categories": ["business", "productivity"]
+}

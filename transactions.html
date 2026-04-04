@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Ledger | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+</head>
+<body class="page-entering">
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+    
+    <div class="container">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-receipt"></i> Transactions</h1>
+                    <p>Financial History & Stock Movements</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                    <a href="repair-jobs.html" class="nav-btn-alt" title="Repairs">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span>Repairs</span>
+                    </a>
+                    <a href="employees.html" class="nav-btn-alt" title="Staff Management">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Staff</span>
+                    </a>
+                    <a href="amc-management.html" class="nav-btn-alt" title="AMC Management">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>AMC</span>
+                    </a>
+                    <a href="service-visits.html" class="nav-btn-alt" title="Service Visits">
+                        <i class="fa-solid fa-car-side"></i>
+                        <span>Visits</span>
+                    </a>
+                </nav>
+
+            </div>
+
+            <div class="header-system">
+                <div class="stats-mini" style="display: flex; gap: 1rem; align-items: center;">
+                    <div id="profitSparkline" style="width: 100px; height: 30px; display: inline-block;"></div>
+                    <div class="stat-pill glass-card">
+                        <span class="label">Net Sales Profit:</span>
+                        <span id="statSalesProfit" class="value" style="color: #10b981;">₹0.00</span>
+                    </div>
+                </div>
+                
+                <div class="system-actions" style="display: flex; align-items: center; gap: 4px;">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" for="themeCheckbox">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+                </div>
+
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="ledger-section glass-card">
+                <div class="section-header" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div>
+                            <h2><i class="fa-solid fa-list-check"></i> Transaction History</h2>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time log of Sales & Purchases</p>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <button id="bulkDeleteBtn" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444; display: none;" onclick="deleteSelectedTransactions()">
+                                <i class="fa-solid fa-trash"></i> Delete Selected (<span id="selectedCount">0</span>)
+                            </button>
+                            <button class="btn btn-primary" onclick="openTransactionModal()">
+                                <i class="fa-solid fa-plus"></i> New Transaction
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="filters-toolbar glass-card" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(15, 23, 42, 0.4); border-radius: 12px; gap: 1rem; flex-wrap: wrap;">
+                        <div class="filter-group" style="display: flex; gap: 0.5rem;">
+                            <button class="filter-pill active" onclick="setFilterType('All', this)">All</button>
+                            <button class="filter-pill" onclick="setFilterType('Sale', this)">Sales Only</button>
+                            <button class="filter-pill" onclick="setFilterType('Purchase', this)">Purchases Only</button>
+                        </div>
+
+                        <div class="date-range-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fa-solid fa-calendar-alt" style="color: var(--text-muted);"></i>
+                            <input type="date" id="dateFrom" class="filter-input" placeholder="From Date" onchange="filterTransactions()">
+                            <span style="color: var(--text-muted);">to</span>
+                            <input type="date" id="dateTo" class="filter-input" placeholder="To Date" onchange="filterTransactions()">
+                        </div>
+
+                        <div class="search-container" style="position: relative; width: 250px;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem;"></i>
+                            <input type="text" id="transactionSearch" placeholder="Search history..." style="width: 100%; padding: 0.6rem 1rem 0.6rem 2.22rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 8px; color: #fff; outline: none; transition: all 0.3s; font-size: 0.85rem;" oninput="filterTransactions()">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="monthlyPnLSummary" class="glass-card" style="margin-bottom: 1.5rem; display: flex; justify-content: space-around; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2); padding: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                    <div style="text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase;">This Month Purchases</span>
+                        <span id="monthlyPurchases" style="font-size: 1.2rem; font-weight: 800; color: #ef4444;">₹0.00</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase;">This Month Sales</span>
+                        <span id="monthlySales" style="font-size: 1.2rem; font-weight: 800; color: #10b981;">₹0.00</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase;">Est. 18% GST on Sales</span>
+                        <span id="monthlyGST" style="font-size: 1.2rem; font-weight: 800; color: #f59e0b;">₹0.00</span>
+                    </div>
+                    <div style="text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase;">This Month Net Profit</span>
+                        <span id="monthlyNetProfit" style="font-size: 1.2rem; font-weight: 800;">₹0.00</span>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="tally-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="selectAllTr" onclick="toggleAllTransactions(this)"></th>
+                                <th>Date / Time</th>
+                                <th>Item Name</th>
+                                <th>Type</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th>Payment</th>
+                                <th>Total</th>
+                                <th>Margin %</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerList">
+                            <!-- Transactions go here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="transaction-summary-bar glass-card" style="margin-top: 1rem; padding: 1.5rem; display: flex; justify-content: space-around; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); flex-wrap: wrap; gap: 1rem;">
+                    <div class="summary-item" style="text-align: center;">
+                        <span class="label" style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Purchase Total</span>
+                        <span id="sumTotalPurchase" class="value" style="font-size: 1.2rem; font-weight: 800;">₹0.00</span>
+                    </div>
+                    <div class="summary-item" style="text-align: center;">
+                        <span class="label" style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Sale Total</span>
+                        <span id="sumTotalSale" class="value" style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">₹0.00</span>
+                    </div>
+                    <div class="summary-item" style="text-align: center;">
+                        <span class="label" style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Net Period Profit</span>
+                        <span id="sumNetProfit" class="value" style="font-size: 1.2rem; font-weight: 800; color: #10b981;">₹0.00</span>
+                    </div>
+                </div>
+
+                <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+            </section>
+        </main>
+    </div>
+
+    <!-- New Transaction Modal -->
+    <div class="modal" id="transactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-cart-shopping text-cyan"></i> Log Transaction</h2>
+                <button class="modal-close" onclick="closeTransactionModal()" style="padding: 1rem; margin: -0.5rem; cursor: pointer; border: none; background: transparent;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="transactionForm">
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label>Transaction Type</label>
+                    <div class="transaction-toggle">
+                        <input type="radio" id="typePurchase" name="trType" value="Purchase" checked>
+                        <label for="typePurchase">Purchase (Stock In)</label>
+                        <input type="radio" id="typeSale" name="trType" value="Sale">
+                        <label for="typeSale">Sale (Stock Out)</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="trItem">Select Item</label>
+                    <select id="trItem" required>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="trQty">Quantity</label>
+                    <input type="number" id="trQty" min="1" required placeholder="Enter quantity">
+                    <div id="stockError" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.5rem; display: none;">
+                        <i class="fa-solid fa-circle-exclamation"></i> Insufficient Stock!
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="trRate">Rate (₹) <span style="font-size: 0.7rem; color: var(--text-muted);">(Per Unit)</span></label>
+                    <input type="number" id="trRate" min="0" step="0.01" required placeholder="0.00">
+                    <div id="marginWarning" style="color: #f59e0b; font-size: 0.8rem; margin-top: 0.5rem; display: none;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Warning: Selling price is at or below Buying Price!
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label>Payment Mode</label>
+                    <div class="transaction-toggle" style="grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px;">
+                        <input type="radio" id="payCash" name="trPayment" value="Cash" checked>
+                        <label for="payCash" style="font-size: 0.8rem; padding: 0.5rem;">Cash</label>
+                        <input type="radio" id="payUPI" name="trPayment" value="UPI">
+                        <label for="payUPI" style="font-size: 0.8rem; padding: 0.5rem;">UPI</label>
+                        <input type="radio" id="payCard" name="trPayment" value="Card">
+                        <label for="payCard" style="font-size: 0.8rem; padding: 0.5rem;">Card</label>
+                        <input type="radio" id="payCredit" name="trPayment" value="Credit">
+                        <label for="payCredit" style="font-size: 0.8rem; padding: 0.5rem;">Credit</label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label for="trNotes">Internal Notes (Optional)</label>
+                    <textarea id="trNotes" rows="2" placeholder="Any remarks..."></textarea>
+                </div>
+
+                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                    <button type="submit" id="confirmTrBtn" class="btn btn-primary" style="flex: 1;">
+                        Confirm Transaction
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="transactions-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script>
+        window.filterTransactions = () => {
+            const query = document.getElementById('transactionSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#ledgerList tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        };
+    </script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repair Jobs | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .forms-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        /* Table Button Styles */
+        .btn-wa {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            box-shadow: 0 4px 10px rgba(37, 211, 102, 0.2);
+        }
+
+        .btn-wa:hover {
+            background: #128C7E;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(37, 211, 102, 0.3);
+        }
+
+        .phone-input-group {
+            display: flex;
+            align-items: stretch;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .phone-input-group:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .country-code {
+            padding: 0.875rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-muted);
+            font-weight: 600;
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            user-select: none;
+        }
+
+        .phone-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0.875rem 1rem;
+        }
+
+        .phone-input:focus {
+            box-shadow: none;
+            background: transparent;
+        }
+        
+        .status-badge {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+        
+        .status-badge.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Search Bar Styling */
+        .search-container {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input-wrapper i {
+            position: absolute;
+            left: 1.25rem;
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3.5rem;
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .search-input:focus {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Form Grid for new fields */
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 80px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            appearance: none;
+            outline: none;
+            cursor: pointer;
+        }
+
+        select option {
+            background: var(--bg-dark);
+        }
+    </style>
+</head>
+<body class="repair-jobs-page">
+    <!-- Premium Preloader -->
+    <div class="preloader-overlay" id="preloader">
+        <div class="loader-container">
+            <svg class="loader-svg" viewBox="0 0 100 100">
+                <path class="trace-bg" d="M10 50 L90 50 M50 10 L50 90 M25 25 L75 75 M75 25 L25 75" />
+                <path class="trace-flow cyan-trace" d="M10 50 L90 50" style="animation-delay: -0.5s;" />
+                <path class="trace-flow blue-trace" d="M50 10 L50 90" style="animation-delay: -1.2s;" />
+                <path class="trace-flow cyan-trace" d="M25 25 L75 75" style="animation-delay: -0.8s;" />
+                <rect class="chip-body" x="30" y="35" width="40" height="30" />
+                <text x="50" y="52" text-anchor="middle" class="chip-text">REPAIR</text>
+            </svg>
+            <div class="loader-tag">Accessing Logs</div>
+        </div>
+    </div>
+
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+    
+    <div class="container" style="max-width: 1400px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-screwdriver-wrench text-cyan"></i> Repair Jobs</h1>
+                    <p>Track device repairs and send automated WhatsApp updates.</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt" title="Transaction Ledger">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="employees.html" class="nav-btn-alt" title="Staff Management">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Staff</span>
+                    </a>
+                    <a href="amc-management.html" class="nav-btn-alt" title="AMC Management">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>AMC</span>
+                    </a>
+                    <a href="service-visits.html" class="nav-btn-alt" title="Service Visits">
+                        <i class="fa-solid fa-car-side"></i>
+                        <span>Visits</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                </nav>
+
+            </div>
+
+            <div class="header-system">
+                <div class="system-tools">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" title="Toggle Light/Dark Mode">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider">
+                                <span class="star star_1"></span>
+                                <span class="star star_2"></span>
+                                <span class="star star_3"></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="cloud">
+                                    <path d="M17.5,19c-3.037,0-5.5-2.463-5.5-5.5c0-0.08,0.002-0.16,0.006-0.24C11.391,13.042,10.71,13,10,13c-2.761,0-5,2.239-5,5s2.239,5,5,5h7.5c2.485,0,4.5-2.015,4.5-4.5S19.985,14,17.5,14c-0.198,0-0.392,0.013-0.582,0.038C16.962,14.013,17,14,17,14c0-2.209-1.791-4-4-4c-0.246,0-0.485,0.022-0.717,0.065C12.115,10.023,12,10,12,10c-2.761,0-5,2.239-5,5c0,0.113,0.005,0.224,0.014,0.334C6.425,15.131,5.748,15,5,15c-2.209,0-4,1.791-4,4s1.791,4,4,4H17.5z"></path>
+                                </svg>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+
+                    <!-- Notification Bell -->
+                    <div class="notification-container">
+                        <div class="notification-bell" id="notifBell">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="notification-badge" id="notifBadge">0</span>
+                        </div>
+                        <div class="notification-dropdown" id="notifDropdown">
+                            <div class="notification-header">
+                                <span>Notifications</span>
+                                <span style="font-size: 0.75rem; opacity: 0.7;">Alerts</span>
+                            </div>
+                            <div class="notification-list" id="notifList">
+                                <div class="notification-empty">No new alerts.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI Dashboard Section -->
+        <div class="kpi-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Repair Revenue</span>
+                    <h3 id="statRepairRevenue" style="font-size: 2rem; font-weight: 800; color: #10b981; margin-top: 0.5rem;">₹0.00</h3>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.1); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #10b981;">
+                    <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+            </div>
+            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Active Jobs</span>
+                    <h3 id="statActiveJobs" style="font-size: 2rem; font-weight: 800; color: #f59e0b; margin-top: 0.5rem;">0</h3>
+                </div>
+                <div style="background: rgba(245, 158, 11, 0.1); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #f59e0b;">
+                    <i class="fa-solid fa-wrench"></i>
+                </div>
+            </div>
+            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+                <div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Avg. TAT (Days)</span>
+                    <h3 id="statAvgTat" style="font-size: 2rem; font-weight: 800; color: #6366f1; margin-top: 0.5rem;">—</h3>
+                </div>
+                <div style="background: rgba(99, 102, 241, 0.1); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #6366f1;">
+                    <i class="fa-solid fa-stopwatch"></i>
+                </div>
+            </div>
+            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem;">
+                <div style="flex: 1;">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Device Breakdown</span>
+                    <div style="height: 100px; position: relative; margin-top: 0.5rem;">
+                        <canvas id="deviceTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="dashboard-grid">
+            
+            <!-- Left Column: Repair Form -->
+            <div class="forms-col">
+                <section class="glass-card">
+                    <h2><i class="fa-solid fa-clipboard-list"></i> Log Repair Ticket</h2>
+                    <form id="repairForm">
+                        <div class="form-group">
+                            <label for="custName" style="display: flex; justify-content: space-between; align-items: center;">
+                                Customer Name
+                                <span id="crmIndicator" style="font-size: 0.75rem; background: var(--accent); color: var(--bg-dark); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: bold; display: none;">REPEAT CUSTOMER</span>
+                            </label>
+                            <input type="text" id="custName" placeholder="e.g. Aman Patil" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="custPhone" style="display: flex; justify-content: space-between;">
+                                WhatsApp Number
+                                <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">(Without country code)</span>
+                            </label>
+                            <div class="phone-input-group">
+                                <div class="country-code">+91</div>
+                                <input type="tel" id="custPhone" class="phone-input" placeholder="9876543210" pattern="[0-9]{10}" required>
+                            </div>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="deviceType">Device Type</label>
+                                <select id="deviceType" required>
+                                    <option value="Laptop">Laptop</option>
+                                    <option value="Desktop">Desktop</option>
+                                    <option value="Printer">Printer</option>
+                                    <option value="Mobile">Mobile</option>
+                                    <option value="Tablet">Tablet</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="deviceModel">Model / Mode</label>
+                                <input type="text" id="deviceModel" placeholder="e.g. L340 / G31" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="deviceIssue">Problem / Issue</label>
+                            <input type="text" id="deviceIssue" placeholder="e.g. Screen Replacement / No Power" required>
+                        </div>
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label for="estPrice">Estimated Price (₹)</label>
+                                <input type="text" id="estPrice" data-currency placeholder="e.g. 1,500" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="estCompletion">Est. Completion Date</label>
+                                <input type="date" id="estCompletion" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="partCost">Part Cost (₹)</label>
+                            <input type="text" id="partCost" data-currency placeholder="Cost to you (optional)">
+                        </div>
+                        <div class="form-group">
+                            <label for="jobComment">Notes / Comments</label>
+                            <textarea id="jobComment" placeholder="Any specific instructions or details..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="techNotes">🔧 Technician Notes <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(Internal – hidden from PDF)</span></label>
+                            <textarea id="techNotes" placeholder="Internal diagnosis notes, part codes..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-full" style="margin-top: 1rem;">
+                            <i class="fa-solid fa-plus"></i> Create Ticket
+                        </button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Right Column: Jobs Table -->
+            <section class="inventory-list-section glass-card" style="height: fit-content;">
+                <div class="section-header">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <h2><i class="fa-solid fa-list-check"></i> <span>Repair History</span></h2>
+                        <span id="totalJobs" class="badge">0 Jobs</span>
+                    </div>
+                    <button class="btn btn-outline" onclick="exportRepairsToCSV()" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </button>
+                </div>
+
+                <div class="status-tabs" id="statusTabs">
+                    <div class="status-tab active" data-status="all">All Jobs</div>
+                    <div class="status-tab" data-status="Pending">Pending</div>
+                    <div class="status-tab" data-status="In Progress">In Progress</div>
+                    <div class="status-tab" data-status="Awaiting Parts">Awaiting Parts</div>
+                    <div class="status-tab" data-status="Completed">Completed</div>
+                </div>
+
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="jobSearch" class="search-input" placeholder="Search by SR No, Customer Name, or Phone..." oninput="filterRepairs()">
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="jobTable">
+                        <thead>
+                            <tr>
+                                <th>SR No</th>
+                                <th>Customer Details</th>
+                                <th>Device Info</th>
+                                <th>Final Cost</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobList">
+                            <tr id="emptyJobRow" class="empty-state">
+                                <td colspan="6">
+                                    <div class="empty-content">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                        <p>No repair tickets logged yet. Log your first ticket to get started.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+            </section>
+            
+        </main>
+    </div>
+
+        <!-- Job Timeline Modal -->
+    <div class="modal" id="timelineModal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <div>
+                    <h2><i class="fa-solid fa-timeline text-cyan"></i> Job Timeline</h2>
+                    <p id="timelineSrNo" style="margin: 0; font-size: 0.85rem; color: var(--text-muted);"></p>
+                </div>
+                <button class="modal-close" onclick="closeTimelineModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="timelineContent" style="padding: 0.5rem 0;"></div>
+        </div>
+    </div>
+
+    <!-- Complete Job Modal -->
+    <div class="modal" id="completeJobModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-square-check text-green"></i> Finalize Repair</h2>
+                <button class="modal-close" onclick="closeCompleteModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="completeJobSummary" style="margin-bottom: 1.5rem; padding: 1.25rem; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); border-radius: 12px; display: flex; align-items: center; gap: 1rem;">
+                <div style="background: var(--success); color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                </div>
+                <div>
+                    <h4 id="completeSrNo" style="margin: 0; color: #10b981;">SR-XXXX</h4>
+                    <p id="completeCustName" style="margin: 0.2rem 0 0; font-size: 0.85rem; color: var(--text-muted);">Customer Name</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    Inventory Parts Used
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">Stock will be deducted automatically</span>
+                </label>
+                <div id="partsUsedList" style="margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                    <!-- Parts Rows -->
+                </div>
+                <button type="button" class="btn btn-outline w-full" style="border-style: dashed; padding: 0.75rem;" onclick="addPartUsedRow()">
+                    <i class="fa-solid fa-plus-circle"></i> Add Part from Inventory
+                </button>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button class="btn btn-outline" style="flex: 1;" onclick="closeCompleteModal()">Cancel</button>
+                <button class="btn btn-success" id="confirmCompleteBtn" style="flex: 2; height: 50px; font-weight: 700;" onclick="finalizeCompletion()">
+                    Complete & Deduct Stock
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="repair-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+    </script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

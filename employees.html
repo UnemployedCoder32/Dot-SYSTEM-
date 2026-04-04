@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Salary & Expenses | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .forms-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Select Dropdown Styling for Custom Theme */
+        select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        select option {
+            background-color: var(--bg-dark);
+            color: #fff;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '\f107';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+        
+        .expenses-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .salary-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .details-btn {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .details-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Modal Styles for Expense Details */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem;
+            transform: translateY(-20px);
+            transition: transform 0.3s;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .modal-close:hover { color: #fff; }
+
+        .expense-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .expense-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .expense-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Password Overlay Styles */
+        #auth-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #auth-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .auth-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUpAuth 0.5s ease forwards;
+        }
+
+        @keyframes slideUpAuth {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .auth-box h2 {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+        }
+
+        .auth-box input[type="password"] {
+            margin-bottom: 1rem;
+            text-align: center;
+            letter-spacing: 0.2rem;
+            font-size: 1.2rem;
+        }
+
+        #auth-error {
+            color: var(--danger);
+            font-size: 0.9rem;
+            min-height: 20px;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #auth-error.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Premium Preloader -->
+    <div class="preloader-overlay" id="preloader">
+        <div class="loader-container">
+            <svg class="loader-svg" viewBox="0 0 100 100">
+                <path class="trace-bg" d="M10 50 L90 50 M50 10 L50 90 M25 25 L75 75 M75 25 L25 75" />
+                <path class="trace-flow cyan-trace" d="M10 50 L90 50" style="animation-delay: -0.5s;" />
+                <path class="trace-flow blue-trace" d="M50 10 L50 90" style="animation-delay: -1.2s;" />
+                <path class="trace-flow cyan-trace" d="M25 25 L75 75" style="animation-delay: -0.8s;" />
+                <rect class="chip-body" x="30" y="35" width="40" height="30" />
+                <text x="50" y="52" text-anchor="middle" class="chip-text">STAFF</text>
+            </svg>
+            <div class="loader-tag">Loading Payroll</div>
+        </div>
+    </div>
+
+
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+    
+    <div class="container" style="max-width: 1400px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-users"></i> Staff Payroll</h1>
+                    <p>Manage Employee Salaries & Track Expenses</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt" title="Transaction Ledger">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="repair-jobs.html" class="nav-btn-alt" title="Repairs">
+                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                        <span>Repairs</span>
+                    </a>
+                    <a href="amc-management.html" class="nav-btn-alt" title="AMC Management">
+                        <i class="fa-solid fa-building-shield"></i>
+                        <span>AMC</span>
+                    </a>
+                    <a href="service-visits.html" class="nav-btn-alt" title="Service Visits">
+                        <i class="fa-solid fa-car-side"></i>
+                        <span>Visits</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                </nav>
+
+            </div>
+
+            <div class="header-system">
+                <div class="system-tools">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" title="Toggle Light/Dark Mode">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider">
+                                <span class="star star_1"></span>
+                                <span class="star star_2"></span>
+                                <span class="star star_3"></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="cloud">
+                                    <path d="M17.5,19c-3.037,0-5.5-2.463-5.5-5.5c0-0.08,0.002-0.16,0.006-0.24C11.391,13.042,10.71,13,10,13c-2.761,0-5,2.239-5,5s2.239,5,5,5h7.5c2.485,0,4.5-2.015,4.5-4.5S19.985,14,17.5,14c-0.198,0-0.392,0.013-0.582,0.038C16.962,14.013,17,14,17,14c0-2.209-1.791-4-4-4c-0.246,0-0.485,0.022-0.717,0.065C12.115,10.023,12,10,12,10c-2.761,0-5,2.239-5,5c0,0.113,0.005,0.224,0.014,0.334C6.425,15.131,5.748,15,5,15c-2.209,0-4,1.791-4,4s1.791,4,4,4H17.5z"></path>
+                                </svg>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Global Settings -->
+                    <a href="settings.html" class="nav-gear-btn" title="System Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </a>
+
+                    <!-- Notification Bell -->
+                    <div class="notification-container">
+                        <div class="notification-bell" id="notifBell">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="notification-badge" id="notifBadge">0</span>
+                        </div>
+                        <div class="notification-dropdown" id="notifDropdown">
+                            <div class="notification-header">
+                                <span>Notifications</span>
+                                <span style="font-size: 0.75rem; opacity: 0.7;">Alerts</span>
+                            </div>
+                            <div class="notification-list" id="notifList">
+                                <div class="notification-empty">No new alerts.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <!-- Analytics Overview -->
+            <div class="analytics-row" style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <section class="glass-card" style="padding: 1.5rem; min-height: 350px;">
+                    <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="fa-solid fa-chart-pie text-cyan"></i> 
+                        <span>Payroll Distribution</span>
+                    </h3>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="salaryChart"></canvas>
+                    </div>
+                </section>
+                <section class="glass-card" style="padding: 1.5rem; min-height: 350px;">
+                    <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="fa-solid fa-chart-line text-blue"></i> 
+                        <span>6-Month Expense Trends</span>
+                    </h3>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- Left Column: Forms -->
+            <div class="forms-col">
+                <!-- Add Employee Form -->
+                <section class="glass-card">
+                    <h2><i class="fa-solid fa-user-plus"></i> Register Employee</h2>
+                    <form id="employeeForm">
+                        <div class="form-group">
+                            <label for="empName">Employee Name</label>
+                            <input type="text" id="empName" placeholder="e.g. Rahul Sharma" required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="baseSalary">Base Salary (₹)</label>
+                                <input type="text" id="baseSalary" data-currency placeholder="e.g. 25,000" required>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="empPhone">Phone Number</label>
+                                <input type="tel" id="empPhone" placeholder="10 Digits" pattern="[0-9]{10}" required title="10 digit mobile number">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-accent w-full">
+                            <i class="fa-solid fa-plus"></i> Add Employee
+                        </button>
+                        <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+                    </form>
+                </section>
+
+                <!-- Add Expense Form -->
+                <section class="glass-card">
+                    <h2><i class="fa-solid fa-receipt"></i> Log Expense</h2>
+                    <form id="expenseForm">
+                        <div class="form-group">
+                            <label for="expenseEmp">Select Employee</label>
+                            <div class="select-wrapper">
+                                <select id="expenseEmp" required>
+                                    <option value="" disabled selected>Choose an employee...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="expenseType">Category</label>
+                                <div class="select-wrapper">
+                                    <select id="expenseType" required>
+                                        <option value="Petrol">Petrol / Travel</option>
+                                        <option value="Meals">Meals</option>
+                                        <option value="Bonus">Bonus</option>
+                                        <option value="Other">Other Adjustment</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="expenseAmount">Amount (₹)</label>
+                                <input type="text" id="expenseAmount" data-currency placeholder="e.g. 1,500" required>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 1.5rem;">
+                            <label for="expenseNote">Notes (Optional)</label>
+                            <input type="text" id="expenseNote" placeholder="e.g. Client meeting travel">
+                        </div>
+                        <button type="submit" class="btn btn-accent w-full">
+                            <i class="fa-solid fa-coins"></i> Add Expense
+                        </button>
+                        <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Right Column: Payroll Table -->
+            <section class="inventory-list-section glass-card" style="height: fit-content;">
+                <div class="section-header" style="justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <h2><i class="fa-solid fa-wallet"></i> Payroll Overview</h2>
+                        <span id="totalEmployees" class="badge">0 Employees</span>
+                        <div class="search-container" style="position: relative; width: 200px; margin-left: 1rem;">
+                            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                            <input type="text" id="payrollSearch" placeholder="Search staff..." style="width: 100%; padding: 0.5rem 0.8rem 0.5rem 2rem; background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 6px; color: #fff; outline: none; font-size: 0.8rem;" oninput="filterPayroll()">
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="select-wrapper" style="width: 180px;">
+                            <select id="monthSelector">
+                                <option value="current">Current Month</option>
+                                <option value="all">All Time</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-outline" style="font-size: 0.8rem; padding: 0.5rem 0.8rem; border-color: #6366f1; color: #6366f1;" onclick="archivePayroll()">
+                            <i class="fa-solid fa-floppy-disk"></i> Archive Month
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="payrollTable">
+                        <thead>
+                            <tr>
+                                <th>Employee Name</th>
+                                <th>Base Salary</th>
+                                <th>Total Expenses</th>
+                                <th>Final Net Salary</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payrollList">
+                            <tr id="emptyPayrollRow" class="empty-state">
+                                <td colspan="5">
+                                    <div class="empty-content">
+                                        <i class="fa-solid fa-users-slash"></i>
+                                        <p>No employees registered yet.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot id="payrollFooter" style="display: none;">
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Total Monthly Payout:</strong></td>
+                                <td id="totalPayout" class="salary-badge" style="font-size: 1.1rem; padding: 0.5rem;"><strong>0.00</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                    <button class="btn btn-outline" style="font-size: 0.9rem; border-color: #6366f1; color: #6366f1;" onclick="togglePayrollHistory()">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Payroll History Archive
+                    </button>
+                    <button class="btn btn-delete" id="clearDataBtn" style="font-size: 0.9rem;">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Reset All Data
+                    </button>
+                </div>
+                
+                <!-- Payroll History Archive Panel -->
+                <div id="payrollHistoryPanel" style="display: none; margin-top: 1.5rem;">
+                    <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0;"><i class="fa-solid fa-archive" style="color: #6366f1;"></i> Archived Payrolls</h3>
+                            <select id="historyMonthSelect" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onchange="renderPayrollHistory(this.value)">
+                                <option value="">— Select Month —</option>
+                            </select>
+                        </div>
+                        <div id="payrollHistoryContent" style="color: var(--text-muted); text-align: center; padding: 2rem;">Select a month to view archive.</div>
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <!-- Expense Details Modal -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalEmpName"><i class="fa-solid fa-receipt text-cyan"></i> Employee Expenses</h2>
+                <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div id="modalChartContainer" style="display: none; height: 160px; margin-bottom: 1.5rem; position: relative;">
+                <canvas id="modalExpenseChart"></canvas>
+            </div>
+
+            <div class="expense-list" id="modalExpenseList">
+                <!-- Dynamically populated -->
+            </div>
+            <div style="border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: var(--text-muted)">Monthly Expenses: </strong>
+                    <span id="modalTotal" class="expenses-badge">₹0.00</span>
+                </div>
+                <button id="downloadPayslipBtn" class="btn btn-primary" style="padding: 0.6rem 1.2rem; font-size: 0.85rem;">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Download Payslip
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="employee-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+    </script>
+    <script src="global-banner.js"></script>
+</body>
+</html>
