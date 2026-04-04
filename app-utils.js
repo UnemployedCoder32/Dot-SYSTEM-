@@ -62,7 +62,7 @@ function attachCurrencyFormatter(input) {
         const newLength = formatted.length;
         const cursorOffset = newLength - oldLength;
         const newCursorPos = Math.max(0, cursorPos + cursorOffset);
-        try { e.target.setSelectionRange(newCursorPos, newCursorPos); } catch (_) {}
+        try { e.target.setSelectionRange(newCursorPos, newCursorPos); } catch (_) { }
     });
 
     input.addEventListener('focus', () => {
@@ -172,7 +172,7 @@ function showConfirm(options = {}) {
         titleEl.textContent = title;
         messageEl.textContent = message;
         okBtn.innerHTML = `<i class="fa-solid ${confirmIcon}"></i> ${confirmText}`;
-        
+
         // Apply type-specific styles
         iconWrap.className = `custom-confirm-icon-wrap type-${type}`;
         okBtn.className = `btn btn-${type}`;
@@ -259,23 +259,23 @@ function _injectToastContainer() {
 function showToast(message, type = 'success') {
     _injectToastContainer();
     const container = document.getElementById('toastContainer');
-    
+
     // Log successful actions
     if (type === 'success') {
         logActivity(message);
     }
-    
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-circle-xmark' : 'fa-circle-info');
-    
+
     toast.innerHTML = `
         <i class="fa-solid ${icon}"></i>
         <span>${message}</span>
     `;
-    
+
     container.appendChild(toast);
-    
+
     // Auto remove after 3 seconds
     setTimeout(() => {
         toast.classList.add('fade-out');
@@ -288,18 +288,18 @@ function showToast(message, type = 'success') {
 // 4. AUTOMATED PDF GENERATION (Estimates & Invoices)
 // =====================================================================
 
-/**
+/** 
  * Generates and opens a professional PDF using the new HTML template.
  * @param {'Estimate'|'Invoice'} type - Document type.
  * @param {object} data - Data for the document.
  */
 async function generatePDF(type, data) {
-        let htmlString = `<!DOCTYPE html>
+    let htmlString = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tax Invoice</title>
+    <title>${type || 'Tax Invoice'}</title>
     <style>
         /* General Setup */
         * {
@@ -589,7 +589,7 @@ async function generatePDF(type, data) {
         <!-- HEADER ROW 1 -->
         <div class="header-title-container">
             <div></div> <!-- Empty div to balance flex for center title -->
-            <div class="header-title">Tax Invoice</div>
+            <div class="header-title">${type || 'Tax Invoice'}</div>
             <div class="header-original">(ORIGINAL FOR RECIPIENT)</div>
         </div>
 
@@ -608,7 +608,7 @@ async function generatePDF(type, data) {
                 <table class="meta-table">
                     <tr>
                         <td>
-                            <span class="meta-label">Invoice No.</span>
+                            <span class="meta-label">${docTitle === 'Delivery Memo' ? 'Memo No.' : 'Invoice No.'}</span>
                             <span class="meta-value font-bold" id="inv-no">64</span>
                         </td>
                         <td>
@@ -832,16 +832,16 @@ async function generatePDF(type, data) {
     const allSettings = JSON.parse(localStorage.getItem('dot_system_settings') || '{}');
     const isQuotation = (type === 'Estimate' || type === 'Quotation');
     const docTitle = isQuotation ? 'QUOTATION' : 'TAX INVOICE';
-    
+
     const bizName = allSettings.bizName || 'DOT SYSTEM';
     const bizAddrLines = [allSettings.bizAddr || '', `${allSettings.bizCity || ''} - ${allSettings.bizPin || ''}`].filter(Boolean).join('<br>');
     const bizPhone = allSettings.bizPhone || '';
     const bizEmail = allSettings.bizEmail || '';
     const bizGst = allSettings.gstNum || 'NOT PROVIDED';
-    
+
     // Customer
     const customerName = data.customer || data.customerName || data.orgName || 'Cash / Walk-in Customer';
-    
+
     // Invoice Meta
     const invNo = data.invoiceNo || data.id || `INV-${Math.floor(1000 + Math.random() * 9000)}`;
     const docDate = data.date || data.createdAt?.split(',')[0] || new Date().toLocaleDateString('en-GB');
@@ -861,7 +861,7 @@ async function generatePDF(type, data) {
     // Update Header
     const titleEls = doc.querySelectorAll('.header-title');
     if (titleEls.length > 0) titleEls[0].textContent = docTitle;
-    
+
     const origEls = doc.querySelectorAll('.header-original');
     if (origEls.length > 0 && isQuotation) origEls[0].style.display = 'none';
 
@@ -871,10 +871,10 @@ async function generatePDF(type, data) {
     setText('seller-phone', bizPhone || '09823015709 / 09923201709');
     setText('seller-gstin', bizGst);
     setText('seller-email', bizEmail || 'admin@wintelsystems.co.in');
-    
+
     // Update Buyer
     setText('buyer-name', customerName);
-    const splitAddr = (data.address || '').split(',').join('<br>'); 
+    const splitAddr = (data.address || '').split(',').join('<br>');
     setHtml('buyer-address', splitAddr || 'Nagpur, Maharashtra');
     setText('buyer-gstin', data.gstin || 'NOT PROVIDED');
 
@@ -886,19 +886,19 @@ async function generatePDF(type, data) {
     const itemsBody = doc.getElementById('invoice-items');
     if (itemsBody) {
         itemsBody.innerHTML = '';
-        
+
         let items = [];
         if (data.items && Array.isArray(data.items)) {
             items = data.items;
         } else {
             const desc = data.problem || data.deviceIssue || data.category || data.type || 'Service / Repair Job';
             const rate = data.price || data.amount || data.fee || 0;
-            items.push({ name: desc, qty: 1, price: rate, hsn: '9987', rateExcl: rate, amount: rate }); 
+            items.push({ name: desc, qty: 1, price: rate, hsn: '9987', rateExcl: rate, amount: rate });
         }
 
         let subtotal = 0;
         let totalQty = 0;
-        
+
         let slHtml = '';
         let descHtml = '';
         let hsnHtml = '';
@@ -908,7 +908,7 @@ async function generatePDF(type, data) {
         let perHtml = '';
         let discHtml = '';
         let amtHtml = '';
-        
+
         items.forEach((item, index) => {
             const qty = parseFloat(item.qty) || 1;
             const rateExcl = parseFloat(item.price || item.rate || 0); // Base price before GST
@@ -917,7 +917,7 @@ async function generatePDF(type, data) {
 
             subtotal += amountExcl;
             totalQty += qty;
-            
+
             slHtml += `<div style="margin-bottom: 5px;">${index + 1}</div>`;
             descHtml += `<div style="margin-bottom: 5px;">${escapeHtml(item.name || item.product || item.deviceType)}</div>`;
             hsnHtml += `<div style="margin-bottom: 5px;">${item.hsn || '84733099'}</div>`;
@@ -928,20 +928,31 @@ async function generatePDF(type, data) {
             discHtml += `<div style="margin-bottom: 5px;"></div>`;
             amtHtml += `<div style="margin-bottom: 5px;">${amountExcl.toFixed(2)}</div>`;
         });
-        
-        const cgst = subtotal * 0.09;
-        const sgst = subtotal * 0.09;
-        const grandTotal = Math.round(subtotal + cgst + sgst); 
 
-        descHtml += `<br><br><br><div class="text-right" style="padding-right: 10px;">OUTPUT CGST @ 9 %</div><div class="text-right" style="padding-right: 10px;">OUTPUT SGST @ 9 %</div>`;
-        discHtml += `<br><br><br><div class="text-right">9 %</div><div class="text-right">9 %</div>`;
-        
-        amtHtml += `
-            <div class="total-hr"></div>
-            <div class="text-right" style="font-weight: normal">${subtotal.toFixed(2)}</div>
-            <div class="text-right">${cgst.toFixed(2)}</div>
-            <div class="text-right">${sgst.toFixed(2)}</div>
-        `;
+        let grandTotal = 0;
+        const isTaxDoc = type === 'Invoice' || type === 'Tax Invoice';
+
+        if (isTaxDoc) {
+            const cgst = subtotal * 0.09;
+            const sgst = subtotal * 0.09;
+            grandTotal = Math.round(subtotal + cgst + sgst);
+
+            descHtml += `<br><br><br><div class="text-right" style="padding-right: 10px;">OUTPUT CGST @ 9 %</div><div class="text-right" style="padding-right: 10px;">OUTPUT SGST @ 9 %</div>`;
+            discHtml += `<br><br><br><div class="text-right">9 %</div><div class="text-right">9 %</div>`;
+            
+            amtHtml += `
+                <div class="total-hr"></div>
+                <div class="text-right" style="font-weight: normal">${subtotal.toFixed(2)}</div>
+                <div class="text-right">${cgst.toFixed(2)}</div>
+                <div class="text-right">${sgst.toFixed(2)}</div>
+            `;
+        } else {
+            grandTotal = Math.round(subtotal);
+            amtHtml += `
+                <div class="total-hr"></div>
+                <div class="text-right" style="font-weight: bold">${subtotal.toFixed(2)}</div>
+            `;
+        }
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -958,7 +969,7 @@ async function generatePDF(type, data) {
         itemsBody.appendChild(tr);
 
         setText('total-qty-all', `${totalQty} NOS`);
-        setText('total-grand', grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}));
+        setText('total-grand', grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }));
         setText('amount-in-words', `INR ${numberToWords(grandTotal)} Only`);
     }
 
@@ -970,7 +981,7 @@ async function generatePDF(type, data) {
     if (printWindow) {
         printWindow.document.write(doc.documentElement.outerHTML);
         printWindow.document.close();
-        
+
         printWindow.setTimeout(() => {
             printWindow.focus();
             printWindow.print();
@@ -995,7 +1006,7 @@ function generateJobCardPDF(job) {
             name: itemDesc,
             qty: 1,
             price: job.price || 0,
-            hsn: '998729' 
+            hsn: '998729'
         }]
     };
     generatePDF('Estimate', mappedData);
@@ -1010,8 +1021,8 @@ function escapeHtml(unsafe) {
 }
 
 function numberToWords(num) {
-    const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
-    const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+    const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
     if ((num = num.toString()).length > 9) return 'overflow';
     const n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n) return '';
@@ -1067,7 +1078,7 @@ function makeSearchableSelect(selectId, placeholder = "Search options...") {
             const opt = options[i];
             const text = opt.textContent.toLowerCase();
             const matches = text.includes(query) || i === 0; // Always show first (placeholder) option
-            
+
             // Note: Hiding options in <select> is flaky but works in most modern desktops
             opt.style.display = matches ? 'block' : 'none';
             if (matches && firstMatch === -1 && i !== 0) firstMatch = i;
@@ -1083,41 +1094,41 @@ function makeSearchableSelect(selectId, placeholder = "Search options...") {
  */
 function renderSparkline(container, data, color = '#3b82f6') {
     if (!container || !data || data.length < 2) return;
-    
+
     const canvas = document.createElement('canvas');
     const dpr = window.devicePixelRatio || 1;
     const rect = container.getBoundingClientRect();
-    
+
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
-    
+
     const ctx = canvas.getContext('2d');
     ctx.scale(dpr, dpr);
-    
+
     const width = rect.width;
     const height = rect.height;
     const max = Math.max(...data);
     const min = Math.min(...data);
     const range = max - min || 1;
-    
+
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = 'round';
-    
+
     data.forEach((val, i) => {
         const x = (i / (data.length - 1)) * width;
         const y = height - ((val - min) / range) * height;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
     });
-    
+
     ctx.stroke();
     container.innerHTML = '';
     container.appendChild(canvas);
-    
+
     // Add tooltip with data values
     container.title = `7-Day Sales Trend: ${data.join(' â†’ ')}`;
     container.style.cursor = 'help';
@@ -1197,7 +1208,7 @@ function initGlobalFeatures() {
         const btn = document.getElementById('fabToggleBtn');
         const menu = document.getElementById('fabMenu');
         const icon = document.getElementById('fabIcon');
-        
+
         btn.addEventListener('click', () => {
             menu.classList.toggle('active');
             if (menu.classList.contains('active')) {
@@ -1334,7 +1345,7 @@ function initGlobalFeatures() {
                 active.isContentEditable
             );
             if (isTyping) return; // don't intercept when user is in a form field
-            
+
             // Ctrl+K for Command Palette
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
@@ -1343,7 +1354,7 @@ function initGlobalFeatures() {
             // Shift + ? for Help
             if (e.shiftKey && e.key === '?') {
                 e.preventDefault();
-                if(window.showToast) showToast('Shortcuts: Ctrl+K (Commands), Ctrl+P (Print)', 'info');
+                if (window.showToast) showToast('Shortcuts: Ctrl+K (Commands), Ctrl+P (Print)', 'info');
             }
             // Esc closes palette
             if (e.key === 'Escape') {

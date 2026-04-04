@@ -30,6 +30,10 @@
                         <i class="fa-solid fa-house"></i>
                         <span>Home</span>
                     </a>
+                    <a href="dm.html" class="nav-btn-alt" title="Delivery Memo">
+                        <i class="fa-solid fa-truck-ramp-box"></i>
+                        <span>Delivery Memo</span>
+                    </a>
                     <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
                         <i class="fa-solid fa-calendar-days"></i>
                         <span>Calendar</span>
@@ -143,14 +147,14 @@
                         <thead>
                             <tr>
                                 <th style="width: 40px;"><input type="checkbox" id="selectAllTr" onclick="toggleAllTransactions(this)"></th>
-                                <th>Date / Time</th>
-                                <th>Item Name</th>
+                                <th>Date</th>
+                                <th>Whom / Entity</th>
+                                <th>Item / Service</th>
                                 <th>Type</th>
                                 <th>Qty</th>
                                 <th>Rate</th>
                                 <th>Payment</th>
                                 <th>Total</th>
-                                <th>Margin %</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -190,19 +194,33 @@
             <form id="transactionForm">
                 <div class="form-group" style="margin-bottom: 1.5rem;">
                     <label>Transaction Type</label>
-                    <div class="transaction-toggle">
+                    <div class="transaction-toggle" style="grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
                         <input type="radio" id="typePurchase" name="trType" value="Purchase" checked>
-                        <label for="typePurchase">Purchase (Stock In)</label>
+                        <label for="typePurchase" style="font-size: 0.85rem;">Purchase</label>
                         <input type="radio" id="typeSale" name="trType" value="Sale">
-                        <label for="typeSale">Sale (Stock Out)</label>
+                        <label for="typeSale" style="font-size: 0.85rem;">Sale</label>
+                        <input type="radio" id="typeService" name="trType" value="Service">
+                        <label for="typeService" style="font-size: 0.85rem;">Service</label>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="form-group">
+                        <label for="trDate">Effective Date</label>
+                        <input type="date" id="trDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="trWhom" id="labelWhom">Supplier Name</label>
+                        <input type="text" id="trWhom" placeholder="Who are you dealing with?" required>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="trItem">Select Item</label>
-                    <select id="trItem" required>
+                    <label for="trItem" id="labelItem">Select or Type Item Name</label>
+                    <input type="text" id="trItem" list="trItemsList" required placeholder="Search or enter new item...">
+                    <datalist id="trItemsList">
                         <!-- Populated by JS -->
-                    </select>
+                    </datalist>
                 </div>
 
                 <div class="form-group">

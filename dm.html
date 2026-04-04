@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Memo | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="page-entering">
+    <div class="background-effect"></div>
+    <div class="container" style="max-width: 1200px;">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-truck-ramp-box text-cyan"></i> Delivery Memo</h1>
+                    <p>Issue stock without immediate billing</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                </nav>
+            </div>
+            <div class="header-system">
+                <div class="system-actions">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="dashboard-grid" style="grid-template-columns: 1fr;">
+            <section class="dm-creator-section glass-card">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-file-circle-plus"></i> Create New Memo</h2>
+                </div>
+
+                <div class="dm-header-form" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="form-group">
+                        <label for="dmWhom">Deliver To (Whom)</label>
+                        <input type="text" id="dmWhom" placeholder="Customer or Site Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dmDate">Memo Date</label>
+                        <input type="date" id="dmDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="dmType">Movement Type</label>
+                        <select id="dmType">
+                            <option value="DM-Out">Outward (Delivery)</option>
+                            <option value="DM-In">Inward (Return/Receipt)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="dm-items-container glass-card" style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="font-size: 1rem;"><i class="fa-solid fa-list-ul"></i> Items List</h3>
+                        <button class="btn btn-sm btn-outline" onclick="addNewItemRow()">
+                            <i class="fa-solid fa-plus"></i> Add Item
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="tally-table">
+                            <thead>
+                                <tr>
+                                    <th>Item Description</th>
+                                    <th style="width: 120px;">Quantity</th>
+                                    <th style="width: 150px;">Rate (Optional)</th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="dmItemsList">
+                                <!-- Item rows injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dm-footer-actions" style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                    <div class="form-group" style="flex: 1; margin-right: 2rem;">
+                        <label for="dmNotes">Remarks / Notes</label>
+                        <input type="text" id="dmNotes" placeholder="Additional details..." style="width: 100%;">
+                    </div>
+                    <button class="btn btn-primary" onclick="finalizeDM()" style="min-width: 200px;">
+                        <i class="fa-solid fa-square-check"></i> Finalize & Print Memo
+                    </button>
+                </div>
+            </section>
+
+            <!-- History Section -->
+            <section class="dm-history-section glass-card" style="margin-top: 2rem;">
+                <div class="section-header">
+                    <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Delivery Memos</h2>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Memo # / Date</th>
+                                <th>To Whom</th>
+                                <th>Items</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dmHistoryList">
+                            <tr><td colspan="5" style="text-align: center; padding: 2rem; opacity: 0.5;">No history available</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Item Datalist -->
+    <datalist id="inventoryDatalist"></datalist>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="dm-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+</body>
+</html>

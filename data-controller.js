@@ -28,7 +28,8 @@ window.DataController = (() => {
         TRANSACTIONS: 'tally_transactions',
         SERVICECALLS: 'tally_service_calls',
         NONAMCCALLS: 'tally_non_amc_calls',
-        TRASH: 'tally_trash'
+        TRASH: 'tally_trash',
+        DM_COUNTER: 'tally_dm_counter'
     };
 
     // Load all data into cache once
@@ -87,29 +88,84 @@ window.DataController = (() => {
     };
 
     const updateStock = (partId, type, quantity, meta = {}) => {
-        const itemIndex = _state.inventory.findIndex(i => i.id === partId);
-        if (itemIndex === -1) return false;
+        let itemIndex = _state.inventory.findIndex(i => i.id === partId);
+        let item;
 
-        const item = _state.inventory[itemIndex];
+        // --- 1. Service Logic (No inventory impact) ---
+        if (type === 'Service') {
+            const transaction = {
+                id: 'tr_srv_' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                timestamp: meta.customDate ? new Date(meta.customDate).toISOString() : new Date().toISOString(),
+                date: meta.customDate ? new Date(meta.customDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+                itemId: 'SERVICE',
+                itemName: meta.itemName || 'General Service',
+                type: 'Service',
+                qty: parseFloat(quantity) || 1,
+                rate: parseFloat(meta.rate) || 0,
+                buyRate: 0,
+                totalValue: (parseFloat(quantity) || 1) * (parseFloat(meta.rate) || 0),
+                paymentMode: meta.paymentMode || 'Cash',
+                notes: meta.notes || '',
+                whom: meta.whom || 'Customer'
+            };
+            _state.transactions.unshift(transaction);
+            save(KEYS.TRANSACTIONS, _state.transactions);
+            return { success: true };
+        }
+
+        // --- 2. Auto-Creation / Item Matching ---
+        if (itemIndex === -1 && (meta.itemName || partId && partId !== 'NEW_ITEM')) {
+            const searchName = meta.itemName || partId;
+            // Search by name (case-insensitive)
+            itemIndex = _state.inventory.findIndex(i => i.name.toLowerCase() === searchName.toLowerCase());
+            
+            if (itemIndex === -1 && meta.itemName) {
+                // Truly new item - Create it
+                const newItem = {
+                    id: 'item_' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                    name: meta.itemName,
+                    sku: (meta.sku || meta.itemName.substring(0, 3).toUpperCase() + '-' + Math.floor(Math.random() * 1000)),
+                    qty: 0,
+                    minStock: 0,
+                    buyPrice: parseFloat(meta.buyPrice || 0),
+                    price: parseFloat(meta.rate || 0),
+                    addedAt: Date.now()
+                };
+                _state.inventory.push(newItem);
+                itemIndex = _state.inventory.length - 1;
+                save(KEYS.INVENTORY, _state.inventory);
+            }
+        }
+
+        // If still not found and no name provided
+        if (itemIndex === -1) return { success: false, reason: 'Item not found' };
+
+        item = _state.inventory[itemIndex];
         const qty = parseFloat(quantity);
         const rate = meta.rate !== undefined ? parseFloat(meta.rate) : (type === 'Sale' ? parseFloat(item.price || 0) : parseFloat(item.buyPrice || 0));
         const buyRate = parseFloat(item.buyPrice || 0);
 
-        if (type === 'Sale') {
-            if (item.qty < qty) return { success: false, reason: 'Insufficient Stock' };
+        if (type === 'Sale' || type === 'DM-Out') {
+            if (type === 'Sale' && item.qty < qty && !meta.allowNegative) {
+                return { success: false, reason: 'Insufficient Stock' };
+            }
             item.qty -= qty;
-            item.totalSold = (parseFloat(item.totalSold) || 0) + qty;
-        } else {
+            if (type === 'Sale') item.totalSold = (parseFloat(item.totalSold) || 0) + qty;
+        } else if (type === 'Purchase' || type === 'DM-In' || type === 'Initial') {
             item.qty += qty;
-            item.totalPurchased = (parseFloat(item.totalPurchased) || 0) + qty;
+            if (type === 'Purchase') {
+                item.totalPurchased = (parseFloat(item.totalPurchased) || 0) + qty;
+                // Update purchase price if provided
+                if (meta.rate) item.buyPrice = parseFloat(meta.rate);
+            }
         }
 
-        // Add to ledger
+        // --- 3. Ledger Entry ---
         const transaction = {
-            id: 'tr_' + Date.now().toString(),
-            timestamp: new Date().toISOString(),
-            date: new Date().toLocaleString(),
-            itemId: partId,
+            id: 'tr_' + Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            timestamp: meta.customDate ? new Date(meta.customDate).toISOString() : new Date().toISOString(),
+            date: meta.customDate ? new Date(meta.customDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+            itemId: item.id,
             itemName: item.name,
             type: type,
             qty: qty,
@@ -117,14 +173,52 @@ window.DataController = (() => {
             buyRate: buyRate,
             totalValue: qty * rate,
             paymentMode: meta.paymentMode || 'Cash',
-            notes: meta.notes || ''
+            notes: meta.notes || '',
+            whom: meta.whom || (type === 'Sale' || type === 'DM-Out' ? 'Customer' : 'Supplier'),
+            dmNumber: meta.dmNumber || null // Track DM association
         };
 
         _state.transactions.unshift(transaction);
 
         save(KEYS.INVENTORY, _state.inventory);
         save(KEYS.TRANSACTIONS, _state.transactions);
-        return { success: true };
+        return { success: true, itemId: item.id };
+    };
+
+    const getNextDMNumber = () => {
+        let count = parseInt(localStorage.getItem(KEYS.DM_COUNTER)) || 500; // Start at 500
+        count++;
+        localStorage.setItem(KEYS.DM_COUNTER, count.toString());
+        return count;
+    };
+
+    const cancelDM = (dmNumber) => {
+        if (!dmNumber) return { success: false, reason: 'No DM number' };
+        
+        // 1. Find all transactions for this DM
+        const dmTransactions = _state.transactions.filter(t => t.dmNumber == dmNumber);
+        if (dmTransactions.length === 0) return { success: false, reason: 'DM not found' };
+
+        // 2. Revert Stock for each
+        dmTransactions.forEach(tr => {
+            const item = _state.inventory.find(i => i.id === tr.itemId);
+            if (item) {
+                if (tr.type === 'DM-Out') {
+                    item.qty += tr.qty;
+                } else if (tr.type === 'DM-In') {
+                    item.qty -= tr.qty;
+                }
+            }
+        });
+
+        // 3. Remove transactions
+        _state.transactions = _state.transactions.filter(t => t.dmNumber != dmNumber);
+        
+        // 4. Save
+        save(KEYS.INVENTORY, _state.inventory);
+        save(KEYS.TRANSACTIONS, _state.transactions);
+        
+        return { success: true, count: dmTransactions.length };
     };
 
     const saveTransactions = (data) => {
@@ -295,6 +389,7 @@ window.DataController = (() => {
         getEmployees, saveEmployees, getPayrollExpense,
         getCrmHistory, saveCrmHistory,
         getTransactions, updateStock, getTransactionProfit, saveTransactions,
+        getNextDMNumber, cancelDM,
         getServiceCalls, saveServiceCalls,
         getNonAmcCalls, saveNonAmcCalls,
         getCalculatedNetProfit,

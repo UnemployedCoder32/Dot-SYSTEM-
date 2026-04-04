@@ -7,9 +7,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const ledgerList = document.getElementById('ledgerList');
     const transactionModal = document.getElementById('transactionModal');
     const transactionForm = document.getElementById('transactionForm');
-    const trItemSelect = document.getElementById('trItem');
+    const trItemInput = document.getElementById('trItem');
+    const trItemsList = document.getElementById('trItemsList');
     const trQtyInput = document.getElementById('trQty');
+    const trWhomInput = document.getElementById('trWhom');
+    const trDateInput = document.getElementById('trDate');
+    const trTypeRadios = document.getElementsByName('trType');
+    const labelWhom = document.getElementById('labelWhom');
+    const labelItem = document.getElementById('labelItem');
     const typeSale = document.getElementById('typeSale');
+    const typeService = document.getElementById('typeService');
     const stockError = document.getElementById('stockError');
     const confirmTrBtn = document.getElementById('confirmTrBtn');
     const statSalesProfit = document.getElementById('statSalesProfit');
@@ -89,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             row.innerHTML = `
                 <td><input type="checkbox" class="tr-checkbox" onchange="toggleTrSelect('${tr.id}', this)"></td>
                 <td>${tr.date}</td>
+                <td><div style="font-weight: 600;">${escapeXml(tr.whom || 'N/A')}</div></td>
                 <td>
                     <strong>${escapeXml(tr.itemName)}</strong>
                     ${tr.notes ? `<div style="font-size: 0.75rem; opacity: 0.6; margin-top: 2px;"><i class="fa-solid fa-note-sticky"></i> ${escapeXml(tr.notes)}</div>` : ''}
@@ -98,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${formatCurrency(tr.rate)}</td>
                 <td><span style="font-size: 0.8rem; font-weight: 600; color: ${payColor};">${payMode}</span></td>
                 <td style="font-weight: 600;">${formatCurrency(tr.totalValue)}</td>
-                <td style="${marginStyle}">${marginText}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem; justify-content: center;">
                         <button class="btn-edit" onclick="downloadInvoice('${tr.id}')" title="Download Tax Invoice">
@@ -289,21 +296,46 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.openTransactionModal = () => {
-        inventory = DataController.getInventory(); // Refresh for latest qty
-        trItemSelect.innerHTML = '<option value="" disabled selected>Select an item...</option>';
-        inventory.forEach(item => {
-            const opt = document.createElement('option');
-            opt.value = item.id;
-            opt.textContent = `${item.name} (Avl: ${item.qty})`;
-            trItemSelect.appendChild(opt);
-        });
-        transactionModal.classList.add('active');
+        inventory = DataController.getInventory();
+        if (trItemsList) {
+            trItemsList.innerHTML = '';
+            inventory.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.name;
+                opt.dataset.id = item.id;
+                trItemsList.appendChild(opt);
+            });
+        }
+        
+        if (trDateInput) {
+            trDateInput.value = new Date().toISOString().split('T')[0];
+        }
 
-        // Enable Search
-        if (window.makeSearchableSelect) {
-            makeSearchableSelect('trItem', 'Search Inventory Items...');
+        updateModalLabels();
+        transactionModal.classList.add('active');
+    };
+
+    const updateModalLabels = () => {
+        const type = document.querySelector('input[name="trType"]:checked')?.value || 'Purchase';
+        
+        if (labelWhom) {
+            labelWhom.textContent = type === 'Purchase' ? 'Supplier Name' : 'Customer Name';
+        }
+        
+        if (labelItem) {
+            labelItem.textContent = type === 'Service' ? 'Service Description' : 'Select or Type Item Name';
+        }
+
+        if (trItemInput) {
+            trItemInput.placeholder = type === 'Service' ? 'e.g. Networking Setup' : 'Search or enter new item...';
         }
     };
+
+    if (trTypeRadios) {
+        trTypeRadios.forEach(radio => {
+            radio.addEventListener('change', updateModalLabels);
+        });
+    }
 
     window.closeTransactionModal = () => {
         transactionModal.classList.remove('active');
@@ -320,16 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
         openTransactionModal();
         
         setTimeout(() => {
-            if (tr.type === 'Sale') {
-                document.getElementById('typeSale').checked = true;
-            } else {
-                document.getElementById('typePurchase').checked = true;
+            const typeRadio = document.querySelector(`input[name="trType"][value="${tr.type}"]`);
+            if (typeRadio) {
+                typeRadio.checked = true;
+                updateModalLabels();
             }
             
-            trItemSelect.value = tr.itemId;
-            trQtyInput.value = tr.qty;
+            if (trItemInput) trItemInput.value = tr.itemName;
+            if (trQtyInput) trQtyInput.value = tr.qty;
+            if (trWhomInput) trWhomInput.value = tr.whom || '';
+            if (trDateInput) trDateInput.value = new Date(tr.timestamp || tr.date).toISOString().split('T')[0];
             
-            validateTrStock();
+            validateTrForm();
         }, 100);
     };
 
@@ -337,18 +371,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const marginWarning = document.getElementById('marginWarning');
 
     const validateTrForm = () => {
-        const item = inventory.find(i => i.id === trItemSelect.value);
-        const qty = parseFloat(trQtyInput.value) || 0;
+        const itemName = trItemInput?.value.trim();
+        const item = inventory.find(i => i.name.toLowerCase() === itemName?.toLowerCase());
+        const qty = parseFloat(trQtyInput?.value) || 0;
         const rate = parseFloat(trRateInput?.value) || 0;
-        const isSale = typeSale.checked;
+        const isSale = typeSale?.checked;
+        const isService = typeService?.checked;
 
         if (isSale && item && qty > item.qty) {
             stockError.style.display = 'block';
             trQtyInput.classList.add('vibrate-error');
             confirmTrBtn.disabled = true;
+        } else if (isSale && !item && itemName) {
+            // New item being sold? We usually allow it if it's an auto-add scenario, 
+            // but for Sale, stock is 0 initially.
+            // Let's show a warning but maybe don't block UNLESS it's a strict sale.
+            // For now, let's just warn about 0 stock for new items.
+            stockError.style.display = 'block';
+            stockError.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> New item will start with 0 stock.';
+            confirmTrBtn.disabled = false; // Allow creation
         } else {
             stockError.style.display = 'none';
-            trQtyInput.classList.remove('vibrate-error');
+            if (trQtyInput) trQtyInput.classList.remove('vibrate-error');
             confirmTrBtn.disabled = false;
         }
 
@@ -364,11 +408,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const autoFillRate = () => {
-        const item = inventory.find(i => i.id === trItemSelect.value);
+        const itemName = trItemInput?.value.trim();
+        const item = inventory.find(i => i.name.toLowerCase() === itemName?.toLowerCase());
         if (item && trRateInput) {
-            if (typeSale.checked) {
+            if (typeSale?.checked) {
                 trRateInput.value = item.price || 0;
-            } else {
+            } else if (!typeService?.checked) {
                 trRateInput.value = item.buyPrice || 0;
             }
         }
@@ -376,10 +421,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (trQtyInput) trQtyInput.addEventListener('input', validateTrForm);
-    if (trItemSelect) trItemSelect.addEventListener('change', autoFillRate);
+    if (trItemInput) trItemInput.addEventListener('change', autoFillRate);
     if (trRateInput) trRateInput.addEventListener('input', validateTrForm);
-    document.getElementById('typeSale')?.addEventListener('change', autoFillRate);
-    document.getElementById('typePurchase')?.addEventListener('change', autoFillRate);
+    trTypeRadios.forEach(radio => radio.addEventListener('change', autoFillRate));
 
     if (transactionForm) {
         transactionForm.addEventListener('submit', (e) => {
@@ -387,17 +431,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const typeValue = document.querySelector('input[name="trType"]:checked').value;
             const paymentMode = document.querySelector('input[name="trPayment"]:checked')?.value || 'Cash';
             const notes = document.getElementById('trNotes')?.value.trim() || '';
-            const itemId = trItemSelect.value;
+            const itemName = trItemInput?.value.trim();
+            const whom = trWhomInput?.value.trim();
+            const customDate = trDateInput?.value;
             const qty = parseFloat(trQtyInput.value);
             const rate = parseFloat(trRateInput?.value || 0);
 
-            const result = DataController.updateStock(itemId, typeValue, qty, { paymentMode, notes, rate });
+            // Find item by name or assume new
+            const item = inventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+            const itemId = item ? item.id : 'NEW_ITEM';
+
+            const result = DataController.updateStock(itemId, typeValue, qty, { 
+                paymentMode, 
+                notes, 
+                rate, 
+                itemName: itemName, // Fallback name for auto-create
+                whom: whom,
+                customDate: customDate,
+                allowNegative: typeValue === 'Sale' // Allow sale recorded after fact for new items?
+            });
+
             if (result.success) {
                 closeTransactionModal();
                 renderLedger();
-                showToast(`Stock updated! ${typeValue} logged successfully.`);
+                showToast(`${typeValue} logged successfully.`);
             } else {
-                alert(result.reason);
+                showToast(result.reason, 'error');
             }
         });
     }
