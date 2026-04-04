@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryDatalist = document.getElementById('inventoryDatalist');
 
     let inventory = DataController.getInventory();
+    let editingDMNumber = null;
 
     // --- 1. Initialize ---
     const init = () => {
@@ -113,7 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirmed) return;
 
         // --- Process Stock Updates ---
-        const dmNumber = DataController.getNextDMNumber();
+        const dmNumber = editingDMNumber || DataController.getNextDMNumber();
+        
+        // If editing, revert old first
+        if (editingDMNumber) {
+            DataController.revertBatch(null, editingDMNumber);
+        }
+
         const results = [];
         for (const itemData of itemsToProcess) {
             // Find existing item by name
@@ -138,6 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
         generateDMPDF(whom, date, itemsToProcess, type, notes, dmNumber);
 
         // --- Reset Form ---
+        editingDMNumber = null;
+        document.querySelector('.section-header h2').innerHTML = '<i class="fa-solid fa-truck-ramp-box"></i> Create Delivery Memo';
+        document.getElementById('finalizeBtn').textContent = 'Generate Memo & Process Stock';
         dmWhomInput.value = '';
         dmNotesInput.value = '';
         dmItemsList.innerHTML = '';
@@ -190,6 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><span class="badge ${group.type.toLowerCase() === 'dm-out' ? 'bg-danger' : 'bg-success'}">${group.type}</span></td>
                 <td>
                     <div style="display:flex; gap:0.5rem;">
+                        <button class="btn btn-sm btn-outline" onclick="editDM(${group.dmNumber})" title="Edit Memo" style="color:var(--primary)">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline" onclick="reprintDM(${group.dmNumber})" title="Reprint">
                             <i class="fa-solid fa-print"></i>
                         </button>
@@ -234,6 +247,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 rate: g.rate
             })), first.type, first.notes, num);
         }
+    };
+
+    window.editDM = (num) => {
+        const transactions = DataController.getTransactions();
+        const group = transactions.filter(t => t.dmNumber == num);
+        if (group.length === 0) return;
+
+        const first = group[0];
+        editingDMNumber = num;
+
+        // UI Feedback
+        document.querySelector('.section-header h2').innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Editing Memo #${num}`;
+        document.getElementById('finalizeBtn').textContent = 'Update Memo & Revert Old Stock';
+        
+        // Fill Header
+        dmWhomInput.value = first.whom || '';
+        dmDateInput.value = new Date(first.timestamp || first.date).toISOString().split('T')[0];
+        dmTypeSelect.value = first.type;
+        dmNotesInput.value = first.notes || '';
+
+        // Fill Items
+        dmItemsList.innerHTML = '';
+        group.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = 'dm-item-row';
+            tr.innerHTML = `
+                <td>
+                    <input type="text" list="inventoryDatalist" class="dm-item-name" placeholder="Search or type item..." style="width:100%" required value="${escapeXml(item.itemName)}">
+                </td>
+                <td>
+                    <input type="number" class="dm-item-qty" min="1" value="${item.qty}" style="width:100%" required>
+                </td>
+                <td>
+                    <input type="number" class="dm-item-rate" min="0" value="${item.rate}" style="width:100%">
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-delete" onclick="removeItemRow(this)" style="color:var(--danger)">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            dmItemsList.appendChild(tr);
+        });
+
+        // Scroll to form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     // --- PDF Generation helper ---

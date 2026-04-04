@@ -203,31 +203,60 @@ window.DataController = (() => {
 
     const cancelDM = (dmNumber) => {
         if (!dmNumber) return { success: false, reason: 'No DM number' };
-        
-        // 1. Find all transactions for this DM
-        const dmTransactions = _state.transactions.filter(t => t.dmNumber == dmNumber);
-        if (dmTransactions.length === 0) return { success: false, reason: 'DM not found' };
+        return revertBatch(null, dmNumber);
+    };
 
-        // 2. Revert Stock for each
-        dmTransactions.forEach(tr => {
+    const revertTransaction = (trId) => {
+        const trIndex = _state.transactions.findIndex(t => t.id === trId);
+        if (trIndex === -1) return { success: false, reason: 'Transaction not found' };
+        
+        const tr = _state.transactions[trIndex];
+        const item = _state.inventory.find(i => i.id === tr.itemId);
+        
+        if (item) {
+            // Revert stock impact
+            if (tr.type === 'Sale' || tr.type === 'DM-Out') {
+                item.qty += tr.qty;
+                if (tr.type === 'Sale') item.totalSold = (parseFloat(item.totalSold) || 0) - tr.qty;
+            } else if (tr.type === 'Purchase' || tr.type === 'DM-In' || tr.type === 'Initial') {
+                item.qty -= tr.qty;
+                if (tr.type === 'Purchase') item.totalPurchased = (parseFloat(item.totalPurchased) || 0) - tr.qty;
+            }
+        }
+
+        _state.transactions.splice(trIndex, 1);
+        save(KEYS.INVENTORY, _state.inventory);
+        save(KEYS.TRANSACTIONS, _state.transactions);
+        return { success: true };
+    };
+
+    const revertBatch = (batchId, dmNumber = null) => {
+        const toRevert = _state.transactions.filter(t => 
+            (batchId && t.batchId == batchId) || (dmNumber && t.dmNumber == dmNumber)
+        );
+        
+        if (toRevert.length === 0) return { success: false, reason: 'Batch not found' };
+
+        toRevert.forEach(tr => {
             const item = _state.inventory.find(i => i.id === tr.itemId);
             if (item) {
-                if (tr.type === 'DM-Out') {
+                if (tr.type === 'Sale' || tr.type === 'DM-Out') {
                     item.qty += tr.qty;
-                } else if (tr.type === 'DM-In') {
+                    if (tr.type === 'Sale') item.totalSold = (parseFloat(item.totalSold) || 0) - tr.qty;
+                } else if (tr.type === 'Purchase' || tr.type === 'DM-In' || tr.type === 'Initial') {
                     item.qty -= tr.qty;
+                    if (tr.type === 'Purchase') item.totalPurchased = (parseFloat(item.totalPurchased) || 0) - tr.qty;
                 }
             }
         });
 
-        // 3. Remove transactions
-        _state.transactions = _state.transactions.filter(t => t.dmNumber != dmNumber);
-        
-        // 4. Save
+        _state.transactions = _state.transactions.filter(t => 
+            !((batchId && t.batchId == batchId) || (dmNumber && t.dmNumber == dmNumber))
+        );
+
         save(KEYS.INVENTORY, _state.inventory);
         save(KEYS.TRANSACTIONS, _state.transactions);
-        
-        return { success: true, count: dmTransactions.length };
+        return { success: true, count: toRevert.length };
     };
 
     const saveTransactions = (data) => {
@@ -398,7 +427,7 @@ window.DataController = (() => {
         getEmployees, saveEmployees, getPayrollExpense,
         getCrmHistory, saveCrmHistory,
         getTransactions, updateStock, getTransactionProfit, saveTransactions,
-        getNextDMNumber, getNextInvoiceNumber, cancelDM,
+        getNextDMNumber, getNextInvoiceNumber, cancelDM, revertTransaction, revertBatch,
         getServiceCalls, saveServiceCalls,
         getNonAmcCalls, saveNonAmcCalls,
         getCalculatedNetProfit,

@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentFilterType = 'All';
     let selectedTransactions = new Set();
+    let editingBatchId = null;
 
     // --- Utilities ---
     const formatCurrency = (amount) => {
@@ -107,6 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="font-weight: 600;">${formatCurrency(tr.totalValue)}</td>
                 <td>
                     <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                        <button class="btn-edit" onclick="editTransaction('${tr.id}')" title="Edit Batch">
+                            <i class="fa-solid fa-pen-to-square" style="color: #6366f1;"></i>
+                        </button>
                         <button class="btn-edit" onclick="downloadInvoice('${tr.id}')" title="Download Tax Invoice">
                             <i class="fa-solid fa-file-invoice" style="color: #ec4899;"></i>
                         </button>
@@ -295,6 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.openTransactionModal = () => {
+        editingBatchId = null; // Clear edit state
+        document.getElementById('confirmTrBtn').textContent = 'Confirm Transaction';
         inventory = DataController.getInventory();
         if (trItemsList) {
             trItemsList.innerHTML = '';
@@ -418,17 +424,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const isSale = typeSale?.checked;
 
         rows.forEach(row => {
-            const name = row.querySelector('.tr-item-name').value.trim();
-            const qty = parseFloat(row.querySelector('.tr-item-qty').value) || 0;
-            const rate = parseFloat(row.querySelector('.tr-item-rate').value) || 0;
+            const nameEl = row.querySelector('.tr-item-name');
+            const qtyEl = row.querySelector('.tr-item-qty');
+            const rateEl = row.querySelector('.tr-item-rate');
+            
+            const name = nameEl.value.trim();
+            const qty = parseFloat(qtyEl.value) || 0;
+            const rate = parseFloat(rateEl.value) || 0;
             
             const item = inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
             
             if (isSale && item && qty > item.qty) {
                 hasStockError = true;
-                row.querySelector('.tr-item-qty').style.borderColor = '#ef4444';
+                qtyEl.style.borderColor = '#ef4444';
             } else {
-                row.querySelector('.tr-item-qty').style.borderColor = '';
+                qtyEl.style.borderColor = '';
             }
 
             if (isSale && item && item.buyPrice && rate <= item.buyPrice && rate > 0) {
@@ -440,6 +450,57 @@ document.addEventListener('DOMContentLoaded', () => {
         if (marginWarning) marginWarning.style.display = hasMarginWarning ? 'block' : 'none';
         
         confirmTrBtn.disabled = hasStockError && !typePurchase.checked;
+    };
+
+    window.editTransaction = (id) => {
+        const tr = transactions.find(t => t.id === id);
+        if (!tr) return;
+        
+        editingBatchId = tr.batchId;
+        const batchItems = tr.batchId ? transactions.filter(t => t.batchId === tr.batchId) : [tr];
+        
+        openTransactionModal();
+        editingBatchId = tr.batchId; // Reset after openTransactionModal clears it
+        document.getElementById('confirmTrBtn').textContent = 'Update Transaction';
+        
+        setTimeout(() => {
+            // Header
+            if (trWhomInput) trWhomInput.value = tr.whom || '';
+            if (trDateInput) trDateInput.value = new Date(tr.timestamp || tr.date).toISOString().split('T')[0];
+            const typeRadio = document.querySelector(`input[name="trType"][value="${tr.type}"]`);
+            if (typeRadio) typeRadio.checked = true;
+            updateModalLabels();
+
+            // Items
+            if (trItemsRows) {
+                trItemsRows.innerHTML = '';
+                batchItems.forEach(item => {
+                    const rowId = 'tr_row_' + Math.random().toString(36).substr(2, 9);
+                    const div = document.createElement('div');
+                    div.className = 'tr-item-row';
+                    div.id = rowId;
+                    div.style = 'display: grid; grid-template-columns: 1fr 80px 100px 30px; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;';
+                    div.innerHTML = `
+                        <div>
+                            <input type="text" list="trItemsList" class="tr-item-name" placeholder="Item Name" required style="width:100%" value="${escapeXml(item.itemName)}" onchange="autoFillRowRate('${rowId}')">
+                        </div>
+                        <div>
+                            <input type="number" class="tr-item-qty" min="1" value="${item.qty}" required style="width:100%" oninput="validateTrForm()">
+                        </div>
+                        <div>
+                            <input type="number" class="tr-item-rate" min="0" step="0.01" value="${item.rate}" required placeholder="0.00" style="width:100%" oninput="validateTrForm()">
+                        </div>
+                        <div>
+                            <button type="button" class="btn-delete" onclick="removeTrItemRow('${rowId}')" style="color:#ef4444; background:none; border:none; cursor:pointer;">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    `;
+                    trItemsRows.appendChild(div);
+                });
+                validateTrForm();
+            }
+        }, 100);
     };
 
     const trTypeRadios = document.getElementsByName('trType');
@@ -461,7 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const customDate = trDateInput?.value;
 
             const rows = document.querySelectorAll('.tr-item-row');
-            const batchId = DataController.getNextInvoiceNumber();
+            const batchId = editingBatchId || DataController.getNextInvoiceNumber();
+            
+            // If editing, revert previous entries first
+            if (editingBatchId) {
+                DataController.revertBatch(editingBatchId);
+            }
             
             let successCount = 0;
             
