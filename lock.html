@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOT System | Secure Access</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="auth-guard.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: var(--bg-dark);
+        }
+
+        .lock-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 2rem;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .lock-card {
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .lock-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 0 15px rgba(6, 182, 212, 0.4));
+        }
+
+        .lock-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .lock-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Password Dots */
+        .pin-dots {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .dot.active {
+            background-color: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            transform: scale(1.2);
+        }
+
+        .dot.error {
+            background-color: var(--danger);
+            border-color: var(--danger);
+            box-shadow: 0 0 15px var(--danger);
+        }
+
+        /* Keypad */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .key {
+            aspect-ratio: 1/1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .key:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .key:active {
+            transform: scale(0.95);
+            background: var(--primary);
+            color: white;
+        }
+
+        .key.special {
+            background: transparent;
+            border: none;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .key.special:hover {
+            color: var(--text-main);
+            transform: none;
+        }
+
+        /* Shake Animation */
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Forgot Password */
+        .forgot-password {
+            margin-top: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .forgot-password:hover {
+            color: var(--accent);
+        }
+
+        .forgot-password i {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+
+    <div class="lock-container">
+        <div class="lock-card glass-card" id="lockCard">
+            <div class="lock-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="lock-header">
+                <div class="lock-title">Sign in as Administrator</div>
+                <div class="lock-subtitle">Enter secure access code to continue</div>
+            </div>
+
+            <div class="pin-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+
+            <div class="keypad">
+                <div class="key" onclick="appendPin('1')">1</div>
+                <div class="key" onclick="appendPin('2')">2</div>
+                <div class="key" onclick="appendPin('3')">3</div>
+                <div class="key" onclick="appendPin('4')">4</div>
+                <div class="key" onclick="appendPin('5')">5</div>
+                <div class="key" onclick="appendPin('6')">6</div>
+                <div class="key" onclick="appendPin('7')">7</div>
+                <div class="key" onclick="appendPin('8')">8</div>
+                <div class="key" onclick="appendPin('9')">9</div>
+                <div class="special key" onclick="clearPin()">Clear</div>
+                <div class="key" onclick="appendPin('0')">0</div>
+                <div class="special key" onclick="deletePin()"><i class="fa-solid fa-delete-left"></i></div>
+            </div>
+
+            <a href="https://wa.me/919307187321?text=Hi%2C%20I%20forgot%20my%20DOT%20System%20password.%20Help%20me%20recover%20it." target="_blank" class="forgot-password">
+                <i class="fa-solid fa-circle-question"></i> Forgot password? Contact System Admin
+            </a>
+        </div>
+    </div>
+
+    <script src="lock-script.js"></script>
+</body>
+</html>

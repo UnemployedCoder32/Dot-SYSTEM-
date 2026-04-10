@@ -45,6 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
         DataController.saveServiceCalls(serviceCalls);
     };
 
+    const loadState = () => {
+        amcContracts = DataController.getAmc();
+        crmHistory = DataController.getCrmHistory();
+        employees = DataController.getEmployees();
+        serviceCalls = DataController.getServiceCalls();
+        renderAmcs();
+        renderServiceHistory();
+    };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
+
     const calculateNextService = (startDate) => {
         const start = new Date(startDate);
         const today = new Date();

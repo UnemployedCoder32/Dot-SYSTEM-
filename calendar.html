@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="auth-guard.js"></script>
     <style>
         .calendar-grid {
             display: grid;
@@ -176,6 +177,11 @@
                     <a href="settings.html" class="nav-gear-btn" title="System Settings">
                         <i class="fa-solid fa-gear"></i>
                     </a>
+
+                    <!-- Logout Button -->
+                    <button class="nav-gear-btn" title="Logout and Lock" onclick="logoutSystem()" style="color: var(--danger); border: none; background: rgba(239, 68, 68, 0.1); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; margin-left: 10px;">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                     <!-- Bell placeholder if needed or just toggle -->
                 </div>
             </div>
@@ -219,6 +225,12 @@
         <button class="btn btn-outline w-full" onclick="closePopup()" style="margin-top: 2rem;">Close</button>
     </div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script src="data-controller.js"></script>
     <script src="notifications.js"></script>
     <script src="transitions.js"></script>
     <script src="theme-system.js"></script>
@@ -227,6 +239,11 @@
         let currentYear = new Date().getFullYear();
         let currentView = 'month';
         let currentWeekStart = getStartOfWeek(new Date());
+
+        // Sync with DataController
+        window.addEventListener('dataUpdate', () => {
+            renderCalendar();
+        });
 
         function getStartOfWeek(d) {
             const date = new Date(d);
@@ -300,9 +317,9 @@
             
             grid.innerHTML = '';
             
-            const repairs = JSON.parse(localStorage.getItem('tally_repair_jobs')) || [];
-            const amcs = JSON.parse(localStorage.getItem('hardware_sync_amc')) || [];
-            const nonAmcCalls = JSON.parse(localStorage.getItem('tally_non_amc_calls')) || [];
+            const repairs = DataController.getRepairs();
+            const amcs = DataController.getAmc();
+            const nonAmcCalls = DataController.getNonAmcCalls();
 
             if (currentView === 'month') {
                 grid.style.display = 'grid';

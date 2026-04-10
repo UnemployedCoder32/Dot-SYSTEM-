@@ -102,13 +102,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const loadState = () => {
         inventory = DataController.getInventory();
+        suppliers = DataController.getSuppliers();
         renderInventory();
+        renderSuppliers();
         
         // Enable Search on Supplier Hub
         if (window.makeSearchableSelect) {
             makeSearchableSelect('partSupplier', 'Search Suppliers...');
         }
     };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
 
     // Format currency
     const formatCurrency = (amount) => {

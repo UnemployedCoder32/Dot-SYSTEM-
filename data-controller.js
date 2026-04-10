@@ -34,7 +34,7 @@ window.DataController = (() => {
     };
 
     // Load all data into cache once
-    const init = () => {
+    const fallbackInit = () => {
         _state.inventory = JSON.parse(localStorage.getItem(KEYS.INVENTORY)) || [];
         _state.suppliers = JSON.parse(localStorage.getItem(KEYS.SUPPLIERS)) || [];
         _state.repairJobs = JSON.parse(localStorage.getItem(KEYS.REPAIRS)) || [];
@@ -51,16 +51,70 @@ window.DataController = (() => {
         const originalLength = _state.trash.length;
         _state.trash = _state.trash.filter(item => item.deletedAt > limitDate);
         if (_state.trash.length !== originalLength) {
-            save(KEYS.TRASH, _state.trash);
+            fallbackSave(KEYS.TRASH, _state.trash);
         }
 
-        console.log('📦 DataController: Initialized Cache');
+        console.log('📦 DataController: Initialized Cache (LocalStorage)');
+        window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
+    };
+
+    const fallbackSave = (key, data) => {
+        localStorage.setItem(key, JSON.stringify(data));
+        window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
+    };
+
+    const init = () => {
+        if (window.FirebaseDB && window.FirebaseDB.database) {
+            const db = window.FirebaseDB.database;
+            console.log('🔥 DataController: Connecting to Firebase...');
+            
+            db.ref('/').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                
+                _state.inventory = data[KEYS.INVENTORY] || [];
+                _state.suppliers = data[KEYS.SUPPLIERS] || [];
+                _state.repairJobs = data[KEYS.REPAIRS] || [];
+                _state.amcContracts = data[KEYS.AMC] || [];
+                _state.employees = data[KEYS.EMPLOYEES] || [];
+                _state.crmHistory = data[KEYS.CRM] || {};
+                _state.transactions = data[KEYS.TRANSACTIONS] || [];
+                _state.serviceCalls = data[KEYS.SERVICECALLS] || [];
+                _state.nonAmcCalls = data[KEYS.NONAMCCALLS] || [];
+                _state.trash = data[KEYS.TRASH] || [];
+
+                // Cleanup trash > 30 days
+                const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                const originalLength = (_state.trash || []).length;
+                _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
+                if ((_state.trash || []).length !== originalLength) {
+                    save(KEYS.TRASH, _state.trash);
+                }
+
+                console.log('📦 DataController: Initialized Cache (Firebase)');
+                window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
+            }, (error) => {
+                console.error('🔥 Firebase Read Error:', error);
+                fallbackInit();
+            });
+        } else {
+            console.warn("🔥 Firebase not initialized. Falling back to LocalStorage.");
+            fallbackInit();
+        }
     };
 
     const save = (key, data) => {
-        localStorage.setItem(key, JSON.stringify(data));
-        // Also notify interested parties
-        window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
+        if (window.FirebaseDB && window.FirebaseDB.database) {
+            const db = window.FirebaseDB.database;
+            db.ref(key).set(data).then(() => {
+                // Also notify immediately for snappier UI
+                window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
+            }).catch(err => {
+                console.error("Firebase Write Error:", err);
+                fallbackSave(key, data);
+            });
+        } else {
+            fallbackSave(key, data);
+        }
     };
 
     // --- Inventory ---

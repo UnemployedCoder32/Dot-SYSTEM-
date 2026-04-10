@@ -4,18 +4,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Entry Animation
     document.body.classList.add('page-entering');
     
-    // Hide Preloader on Load (Fail-safe)
+    // Hide Preloader on Load (Wait for Data)
     const hidePreloader = () => {
         if (preloader) preloader.classList.add('hidden');
         document.body.classList.remove('page-exiting');
         document.body.classList.add('page-entering');
     };
 
-    // Immediate cleanup
-    hidePreloader();
+    // Wait for DataController to signal data is ready
+    window.addEventListener('dataUpdate', (e) => {
+        if (e.detail && e.detail.key === 'ALL') {
+             hidePreloader();
+        }
+    });
     
-    // Explicit timeout just in case it missed the initial call
-    setTimeout(hidePreloader, 300);
+    // Explicit timeout as total fallback (3 seconds)
+    setTimeout(hidePreloader, 3000);
 
     // 2. Intercept Navigation
     const navLinks = document.querySelectorAll('a:not([href^="http"]):not([href^="mailto"]):not([target="_blank"]):not(.btn-call):not(.btn-wa)');

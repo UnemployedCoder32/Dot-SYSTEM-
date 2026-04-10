@@ -6,6 +6,7 @@
     <title>⚙️ System Settings | DOT System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="auth-guard.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -660,6 +661,9 @@
             <a href="index.html" class="back-link">
                 <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
             </a>
+            <button class="back-link" onclick="logoutSystem()" style="color: var(--danger); border: none; background: rgba(239, 68, 68, 0.1); cursor: pointer; width: 100%; border-radius: 8px; margin-top: 5px; padding: 10px 12px;">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout and Lock
+            </button>
             <button class="btn-save-sidebar" id="saveAllBtn">
                 <i class="fa-solid fa-cloud-arrow-up"></i> SAVE SETTINGS
             </button>
@@ -1149,6 +1153,11 @@
         });
     </script>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    
     <script src="data-controller.js"></script>
     <script src="app-utils.js"></script>
     <script src="theme-system.js"></script>

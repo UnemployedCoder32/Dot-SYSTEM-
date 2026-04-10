@@ -16,6 +16,7 @@
     <!-- External Libraries -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link rel="apple-touch-icon" href="app-icon.png">
+    <script src="auth-guard.js"></script>
 </head>
 <body>
     <!-- Premium Preloader -->
@@ -113,6 +114,11 @@
                     <a href="settings.html" class="nav-gear-btn" title="System Settings">
                         <i class="fa-solid fa-gear"></i>
                     </a>
+
+                    <!-- Logout Button -->
+                    <button class="nav-gear-btn" title="Logout and Lock" onclick="logoutSystem()" style="color: var(--danger); border: none; background: rgba(239, 68, 68, 0.1); cursor: pointer;">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
 
                     <!-- Notification Bell -->
                     <div class="notification-container">
@@ -530,6 +536,11 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    
     <script src="data-controller.js"></script>
     <script src="app-utils.js"></script>
     <script src="theme-system.js"></script>

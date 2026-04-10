@@ -14,16 +14,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const init = () => {
         // Set default date
         dmDateInput.value = new Date().toISOString().split('T')[0];
-        
+        loadState();
+    };
+
+    const loadState = () => {
+        inventory = DataController.getInventory();
         // Populate inventory datalist
         updateInventoryDatalist();
-        
-        // Add first empty row
-        addNewItemRow();
-        
+        // Add first empty row if none
+        if (dmItemsList.children.length === 0) addNewItemRow();
         // Render History
         renderDMHistory();
     };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
 
     const updateInventoryDatalist = () => {
         inventory = DataController.getInventory();

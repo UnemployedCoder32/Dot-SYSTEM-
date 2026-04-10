@@ -31,13 +31,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedTransactions = new Set();
 
     // --- Utilities ---
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 2
-        }).format(amount);
+    const loadState = () => {
+        inventory = DataController.getInventory();
+        transactions = DataController.getTransactions();
+        renderLedger();
     };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
 
     const renderLedger = () => {
         if (!ledgerList) return;

@@ -42,6 +42,19 @@ document.addEventListener('DOMContentLoaded', () => {
         DataController.saveEmployees(employees);
     };
 
+    const loadState = () => {
+        employees = DataController.getEmployees();
+        renderDropdown();
+        renderMonthSelector();
+        renderTable();
+        updateCharts();
+    };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
+
     // --- Core Features ---
 
     const renderDropdown = () => {

@@ -42,6 +42,17 @@ window.filterRepairs = () => {
         DataController.saveCrmHistory(crmHistory);
     };
 
+    const loadState = () => {
+        repairJobs = DataController.getRepairs();
+        crmHistory = DataController.getCrmHistory();
+        renderTable();
+    };
+
+    // Listen for cloud data updates
+    window.addEventListener('dataUpdate', () => {
+        loadState();
+    });
+
     const generateSRNo = () => {
         // Find highest existing SR number index to avoid collisions
         let maxIndex = 0;
