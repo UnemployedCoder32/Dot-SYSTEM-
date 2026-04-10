@@ -252,6 +252,31 @@
             return new Date(date.setDate(diff));
         }
 
+        const applyRoleRestrictions = () => {
+            const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+            const role = authData.role || 'staff';
+            const name = authData.name || 'User';
+
+            // 1. Personalized Greeting
+            const welcomeText = document.querySelector('.header-title p');
+            if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | ${role.toUpperCase()}`;
+
+            if (role === 'staff') {
+                document.body.classList.add('user-is-staff');
+                
+                // Hide Settings gear
+                const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
+                if (settingsBtn) settingsBtn.style.display = 'none';
+
+                // Hide Restricted Nav Links
+                const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+                document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (restrictedLinks.includes(href)) link.style.display = 'none';
+                });
+            }
+        };
+
         function toggleView() {
             currentView = currentView === 'month' ? 'week' : 'month';
             document.getElementById('viewToggleBtn').innerHTML = currentView === 'month' ? '<i class="fa-solid fa-list-ul"></i> Week' : '<i class="fa-solid fa-calendar"></i> Month';
@@ -297,7 +322,14 @@
             const visitId = ev.dataTransfer.getData("text");
             if (!visitId) return;
 
-            let nonAmcCalls = JSON.parse(localStorage.getItem('tally_non_amc_calls')) || [];
+            // RBAC Check for Drag & Drop
+            const role = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}').role;
+            if (role !== 'admin') {
+                if (window.showToast) showToast('Security Alert: Rescheduling requires Administrator privileges.', 'error');
+                return;
+            }
+
+            let nonAmcCalls = DataController.getNonAmcCalls();
             const idx = nonAmcCalls.findIndex(v => v.id === visitId);
             if (idx !== -1) {
                 const d = new Date(targetDateStr);
@@ -305,7 +337,8 @@
                 const month = String(d.getMonth() + 1).padStart(2, '0');
                 const day = String(d.getDate()).padStart(2, '0');
                 nonAmcCalls[idx].date = `${year}-${month}-${day}`;
-                localStorage.setItem('tally_non_amc_calls', JSON.stringify(nonAmcCalls));
+                
+                DataController.saveNonAmcCalls(nonAmcCalls);
                 renderCalendar();
                 if(window.showToast) showToast('Visit rescheduled to ' + targetDateStr);
             }
@@ -464,7 +497,10 @@
             document.getElementById('popupOverlay').classList.remove('active');
         }
 
-        document.addEventListener('DOMContentLoaded', renderCalendar);
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCalendar();
+            applyRoleRestrictions();
+        });
     </script>
     <script src="global-banner.js"></script>
 </body>

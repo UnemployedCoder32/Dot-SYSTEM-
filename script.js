@@ -118,14 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
         loadState();
     });
 
-    // Format currency
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR'
-        }).format(amount);
-    };
-
     // Escape XML special characters
     const escapeXml = (unsafe) => {
         if (!unsafe) return "";
@@ -146,30 +138,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = authData.name || 'User';
 
         // 1. Personalized Greeting
-        const welcomeText = document.querySelector('.header-left p');
-        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | ${role.toUpperCase()}`;
+        const welcomeText = document.querySelector('.header-left p') || document.querySelector('.header-title p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
 
         if (role === 'staff') {
-            console.log("🔒 Restricted Access: Staff Mode Active");
             document.body.classList.add('user-is-staff');
             
-            // Hide Profit & Inventory Value cards
-            const profitCard = document.querySelector('.glow-green:has(#statNetProfit)');
-            const valueCard = document.querySelector('.glow-orange:has(#statTotalValue)');
-            if (profitCard) profitCard.style.display = 'none';
-            if (valueCard) valueCard.style.display = 'none';
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
 
-            // Hide Settings gear
-            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
-            if (settingsBtn) settingsBtn.style.display = 'none';
-
-            // Hide System Toolbar (Backup/Restore)
-            const systemToolbar = document.querySelector('.toolbar-group:has(#backupBtn)');
-            if (systemToolbar) systemToolbar.style.display = 'none';
+            // Hide Restricted Sidebar/Nav links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt, .sidebar-link').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
 
             // Remove Toolbar Dividers near hidden items
-            const dividers = document.querySelectorAll('.toolbar-divider');
-            if (dividers.length > 1) dividers[1].style.display = 'none';
+            document.querySelectorAll('.toolbar-divider').forEach(div => {
+                if (div.previousElementSibling?.style.display === 'none' || div.nextElementSibling?.style.display === 'none') {
+                    div.style.display = 'none';
+                }
+            });
 
             // Hide 'Margins' column in table Header
             const tableHeaders = document.querySelectorAll('.inventory-table th');
@@ -488,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><span class="badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2);">${getLastSoldDate(item.sku)}</span></td>
                     <td>${formatCurrency(item.price || 0)}</td>
                     <td class="admin-only">${formatCurrency(itemValue)}</td>
-                    <td style="color: ${marginColor}; font-weight: 600;" title="${marginTitle}" class="admin-only">${marginText}</td>
+                    <td class="admin-only" style="color: ${marginColor}; font-weight: 600;" title="${marginTitle}">${marginText}</td>
                     <td>
                         ${item.qty === 0 ? '<span class="status-critical bg-danger badge">CRITICAL</span>' : 
                           (isLowStock ? '<span class="badge-restock">Restock</span>' : '<span style="color: grey; opacity: 0.5; font-size: 0.8rem;">Stock OK</span>')}
@@ -498,13 +494,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             <button class="btn-edit" onclick="generatePDF('Estimate', {id: '${item.id}', orgName: 'Customer', items: [{product: '${escapeXml(item.name)}', qty: 1, price: ${item.price}}], price: ${item.price}})" title="Generate Quotation">
                                 <i class="fa-solid fa-file-pdf" style="color: #ec4899;"></i>
                             </button>
-                            ${isLowStock ? `<button class="btn-edit" onclick="window.location.href='transactions.html?action=buy&item=${encodeURIComponent(item.name)}'" title="Quick Reorder" style="color: #f59e0b;"><i class="fa-solid fa-arrows-rotate"></i></button>` : ''}
-                            <button class="btn-edit" onclick="editItem('${item.id}')" title="Edit Item">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button class="btn-delete-animated" onclick="deleteItem('${item.id}')" title="Remove Item">
-                                 <svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
-                            </button>
+                            <div class="admin-only" style="display: contents;">
+                                ${isLowStock ? `<button class="btn-edit" onclick="window.location.href='transactions.html?action=buy&item=${encodeURIComponent(item.name)}'" title="Quick Reorder" style="color: #f59e0b;"><i class="fa-solid fa-arrows-rotate"></i></button>` : ''}
+                                <button class="btn-edit" onclick="editItem('${item.id}')" title="Edit Item">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button class="btn-delete-animated" onclick="deleteItem('${item.id}')" title="Remove Item">
+                                     <svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </td>
                 `;
@@ -834,9 +832,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const statAmcTotal = document.getElementById('statAmcTotal');
         if (!statAmcTotal) return;
 
-        const amcContracts = DataController.getAmc();
+        // DataController method name fix: getAmc -> getAmcs() or getAmcContracts()
+        // Checking getAmc() which was found in previous turn.
+        const amcContracts = DataController.getAmc() || [];
         const totalAmcValue = amcContracts.reduce((sum, amc) => sum + (parseFloat(amc.amount) || 0), 0);
-        statAmcTotal.textContent = formatCurrency(totalAmcValue);
+        statAmcTotal.textContent = window.formatCurrency(totalAmcValue);
     };
 
     // --- Analytics Charts ---
@@ -1240,10 +1240,270 @@ document.addEventListener('DOMContentLoaded', () => {
         }).length;
         const amcsDueEl = document.getElementById('amcsDue');
         if (amcsDueEl) amcsDueEl.textContent = amcsDueCount;
+
+        // 4. Update Main KPIs (Financials)
+        updateDashboardKpis();
+    };
+
+    const updateDashboardKpis = () => {
+        const netProfit = DataController.getCalculatedNetProfit();
+        const invValue = DataController.getInventoryValue();
+        const amcAnnual = DataController.getAmcMonthlyRevenue() * 12; // Approximation for Annual
+        const uniqueItems = DataController.getInventory().length;
+
+        const profitEl = document.getElementById('statNetProfit');
+        const valueEl = document.getElementById('statTotalValue');
+        const amcEl = document.getElementById('statAmcTotal');
+        const itemsEl = document.getElementById('statTotalItems');
+
+        if (profitEl) {
+            profitEl.textContent = window.formatCurrency(netProfit);
+            profitEl.className = netProfit >= 0 ? 'text-green' : 'text-danger';
+        }
+        if (valueEl) valueEl.textContent = window.formatCurrency(invValue);
+        if (amcEl) amcEl.textContent = window.formatCurrency(amcAnnual);
+        if (itemsEl) itemsEl.textContent = uniqueItems.toLocaleString();
+    };
+
+    // --- Intelligence Hub: Charts ---
+    const initAnalyticsCharts = () => {
+        const inventory = DataController.getInventory();
+        const transactions = DataController.getTransactions() || [];
+        
+        // 1. Stock Health (Radial Bar)
+        const lowStockItems = inventory.filter(item => item.qty <= (item.minStock || 5)).length;
+        const healthyItems = inventory.length - lowStockItems;
+        const healthPercent = inventory.length > 0 ? Math.round((healthyItems / inventory.length) * 100) : 100;
+
+        const healthOptions = {
+            series: [healthPercent],
+            chart: { height: 300, type: 'radialBar' },
+            plotOptions: {
+                radialBar: {
+                    hollow: { size: '70%', },
+                    dataLabels: {
+                        name: { show: false },
+                        value: {
+                            offsetY: 10,
+                            fontSize: '22px',
+                            fontWeight: 700,
+                            formatter: (val) => val + '%',
+                            color: 'var(--text-color)'
+                        }
+                    }
+                }
+            },
+            colors: [healthPercent > 70 ? '#10b981' : healthPercent > 30 ? '#f59e0b' : '#ef4444'],
+            labels: ['Stock Health'],
+        };
+
+        if (charts.health) charts.health.destroy();
+        const healthEl = document.querySelector("#stockHealthChart");
+        if (healthEl) {
+            charts.health = new ApexCharts(healthEl, healthOptions);
+            charts.health.render();
+        }
+
+        // 2. Performance Pulse (Area Chart - Admin Only)
+        if (window.isAdmin && window.isAdmin()) {
+            const last7Days = [...Array(7)].map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                return d.toISOString().split('T')[0];
+            }).reverse();
+
+            const revenueData = last7Days.map(date => {
+                return transactions
+                    .filter(t => t.date === date && t.type === 'Sale')
+                    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            });
+
+            const pulseOptions = {
+                series: [{ name: 'Revenue', data: revenueData }],
+                chart: { height: 280, type: 'area', toolbar: { show: false }, zoom: { enabled: false } },
+                dataLabels: { enabled: false },
+                stroke: { curve: 'smooth', width: 3 },
+                colors: ['#3b82f6'],
+                fill: {
+                    type: 'gradient',
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [20, 100] }
+                },
+                xaxis: {
+                    categories: last7Days.map(d => d.split('-').slice(1).reverse().join('/')),
+                    axisBorder: { show: false },
+                    axisTicks: { show: false }
+                },
+                yaxis: { show: false },
+                grid: { show: false }
+            };
+
+            if (charts.revenue) charts.revenue.destroy();
+            const pulseEl = document.querySelector("#performancePulseChart");
+            if (pulseEl) {
+                charts.revenue = new ApexCharts(pulseEl, pulseOptions);
+                charts.revenue.render();
+            }
+        }
+    };
+
+    // --- Command Palette: Ctrl+K ---
+    const commandPalette = document.getElementById('commandPalette');
+    const paletteSearchInput = document.getElementById('paletteSearchInput');
+    const paletteResults = document.getElementById('paletteResults');
+
+    const toggleCommandPalette = (show) => {
+        if (show) {
+            commandPalette.classList.add('active');
+            paletteSearchInput.value = '';
+            paletteResults.innerHTML = '';
+            setTimeout(() => paletteSearchInput.focus(), 50);
+        } else {
+            commandPalette.classList.remove('active');
+        }
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            toggleCommandPalette(true);
+        }
+        if (e.key === 'Escape') {
+            toggleCommandPalette(false);
+        }
+    });
+
+    if (commandPalette) {
+        commandPalette.addEventListener('click', (e) => {
+            if (e.target === commandPalette) toggleCommandPalette(false);
+        });
+    }
+
+    if (paletteSearchInput) {
+        paletteSearchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (query.length < 2) {
+                paletteResults.innerHTML = '';
+                return;
+            }
+
+            const inventory = DataController.getInventory();
+            const repairs = DataController.getRepairs() || [];
+            const amcs = DataController.getAmcs() || [];
+
+            const results = [
+                ...inventory.filter(i => i.name.toLowerCase().includes(query) || (i.sku && i.sku.toLowerCase().includes(query))).map(i => ({ type: 'Product', title: i.name, sub: `SKU: ${i.sku || 'N/A'} | Stock: ${i.qty}`, icon: 'fa-box', link: 'index.html' })),
+                ...repairs.filter(r => r.customerName.toLowerCase().includes(query) || r.jobId.toLowerCase().includes(query)).map(r => ({ type: 'Repair', title: r.customerName, sub: `Job #${r.jobId} | ${r.status}`, icon: 'fa-tools', link: 'repair-jobs.html' })),
+                ...amcs.filter(a => a.customerName.toLowerCase().includes(query)).map(a => ({ type: 'AMC', title: a.customerName, sub: `Expiry: ${a.expiryDate}`, icon: 'fa-shield-halved', link: 'amc-management.html' }))
+            ].slice(0, 8);
+
+            paletteResults.innerHTML = results.length ? results.map(res => `
+                <div class="result-item" onclick="window.location.href='${res.link}'">
+                    <div class="result-icon"><i class="fa-solid ${res.icon}"></i></div>
+                    <div class="result-details">
+                        <div class="result-title">${res.title}</div>
+                        <div class="result-subtitle">${res.type} • ${res.sub}</div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right" style="font-size: 0.7rem; opacity: 0.3;"></i>
+                </div>
+            `).join('') : '<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No matching records found.</div>';
+        });
+    }
+
+    // --- Productivity: Smart Action Ribbons ---
+    const initSmartRibbons = () => {
+        const container = document.getElementById('smartRibbonContainer');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const inventory = DataController.getInventory();
+        const repairs = DataController.getRepairs();
+        const lowStockItems = inventory.filter(i => (i.qty || 0) <= (i.minStock || 0));
+        const readyRepairs = repairs.filter(r => r.status === 'Completed');
+
+        let ribbonHTML = '';
+
+        if (lowStockItems.length > 0) {
+            ribbonHTML = `
+                <div class="smart-ribbon">
+                    <div class="ribbon-content">
+                        <div class="ribbon-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                        <div class="ribbon-text">
+                            <h4>Low Stock Detected</h4>
+                            <p>${lowStockItems.length} items are below minimum levels. Consider creating a Purchase DM.</p>
+                        </div>
+                    </div>
+                    <div class="ribbon-actions">
+                        <a href="delivery-memo.html" class="btn btn-sm btn-primary">Create Purchase DM</a>
+                    </div>
+                </div>
+            `;
+        } else if (readyRepairs.length > 0) {
+            ribbonHTML = `
+                <div class="smart-ribbon" style="border-left-color: #10b981;">
+                    <div class="ribbon-content">
+                        <div class="ribbon-icon" style="background: #10b981;"><i class="fa-solid fa-truck-fast"></i></div>
+                        <div class="ribbon-text">
+                            <h4>Repairs Ready for Delivery</h4>
+                            <p>${readyRepairs.length} jobs are completed. Notify customers or generate invoices now.</p>
+                        </div>
+                    </div>
+                    <div class="ribbon-actions">
+                        <a href="repair-jobs.html" class="btn btn-sm btn-success">View Completed Jobs</a>
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = ribbonHTML;
+    };
+
+    // --- Operational Resilience: System Pulse ---
+    const renderPulse = () => {
+        const pulseList = document.getElementById('auditPulseList');
+        if (!pulseList) return;
+
+        const pulse = DataController.getPulse();
+        if (pulse.length === 0) {
+            pulseList.innerHTML = '<div class="audit-empty">Awaiting activity...</div>';
+            return;
+        }
+
+        pulseList.innerHTML = pulse.map(log => {
+            const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let icon = 'fa-info-circle';
+            let color = 'var(--primary)';
+            
+            if (log.type === 'success') { icon = 'fa-check-circle'; color = '#10b981'; }
+            if (log.type === 'warning') { icon = 'fa-exclamation-circle'; color = '#f59e0b'; }
+            if (log.type === 'danger') { icon = 'fa-triangle-exclamation'; color = '#ef4444'; }
+            if (log.type === 'auth') { icon = 'fa-shield-halved'; color = '#8b5cf6'; }
+
+            return `
+                <div class="audit-item fade-in">
+                    <div class="audit-icon" style="background: ${color}20; border-color: ${color}40;">
+                        <i class="fa-solid ${icon}" style="color: ${color};"></i>
+                    </div>
+                    <div class="audit-info">
+                        <div class="audit-action"><strong>${log.user}</strong> ${log.action}</div>
+                        <div class="audit-details">${log.details}</div>
+                    </div>
+                    <div class="audit-time">${time}</div>
+                </div>
+            `;
+        }).join('');
     };
 
     // Initial Load
     loadState();
     initAnalyticsCharts();
     renderTodaySummary();
+    renderPulse();
+    initSmartRibbons();
+
+    // Listen for data updates to refresh charts/pulse
+    window.addEventListener('dataUpdate', () => {
+        initAnalyticsCharts();
+        renderPulse();
+        initSmartRibbons();
+    });
 });

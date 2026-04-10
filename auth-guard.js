@@ -1,50 +1,53 @@
 /**
  * auth-guard.js
  * Protects the application by ensuring the user is authenticated.
- * Redirects to lock.html if unauthorized.
+ * Supports Role-Based Access Control (RBAC).
  */
 
 (function() {
     const AUTH_DATA_KEY = 'dotsystem_auth_data';
     const LOCK_PAGE = 'lock.html';
     
-    // Check if current page is the lock page
-    const isLockPage = window.location.pathname.endsWith(LOCK_PAGE);
+    // Check session
     const authData = JSON.parse(localStorage.getItem(AUTH_DATA_KEY) || 'null');
+    const isLockPage = window.location.pathname.endsWith(LOCK_PAGE);
 
-    // 1. Check if user is logged in at all
+    // 1. Mandatory Login Check
     if (!authData && !isLockPage) {
         window.location.href = LOCK_PAGE;
         return;
     }
 
-    // 2. Check 2FA status for Admins
-    if (authData && authData.role === 'admin' && !authData.twoStepVerified && !isLockPage) {
-        window.location.href = LOCK_PAGE + '?step=2';
-        return;
-    }
-
-    // 3. Prevent Staff from accessing Admin-only pages
+    // 2. Prevent Staff access to sensitive pages
     if (authData && authData.role === 'staff') {
-        const restrictedPages = ['settings.html', 'employees.html', 'amc-management.html'];
-        const currentPage = window.location.pathname.split('/').pop();
-        if (restrictedPages.includes(currentPage)) {
-            window.alert("Access Denied: You do not have administrator privileges.");
+        const restricted = ['settings.html', 'employees.html', 'amc-management.html'];
+        const current = window.location.pathname.split('/').pop();
+        if (restricted.includes(current)) {
             window.location.href = 'index.html';
         }
     }
 
-    // 4. If fully authenticated, don't stay on lock page
+    // 3. Prevent loop on Lock Page if already valid
     if (authData && isLockPage) {
-        const isVerified = (authData.role === 'staff' || (authData.role === 'admin' && authData.twoStepVerified));
-        if (isVerified && !window.location.search.includes('step=2')) {
-            window.location.href = 'index.html';
-        }
+        window.location.href = 'index.html';
     }
 
-    // Export global logout function
+    // Export global helpers
     window.logoutSystem = function() {
         localStorage.removeItem(AUTH_DATA_KEY);
         window.location.href = LOCK_PAGE;
     };
+
+    window.getCurrentUser = () => authData;
+    window.isAdmin = () => authData && authData.role === 'admin';
+
+    // Global UI Shroud for Staff
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!window.isAdmin()) {
+            document.body.classList.add('user-is-staff');
+            const restricted = document.querySelectorAll('.admin-only, .admin-insight');
+            restricted.forEach(el => el.style.display = 'none');
+        }
+    });
+
 })();

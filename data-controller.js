@@ -15,7 +15,8 @@ window.DataController = (() => {
         serviceCalls: [],
         nonAmcCalls: [],
         trash: [],
-        users: {}
+        users: {},
+        pulse: []
     };
 
     // localStorage keys
@@ -31,7 +32,8 @@ window.DataController = (() => {
         NONAMCCALLS: 'tally_non_amc_calls',
         TRASH: 'tally_trash',
         INV_COUNTER: 'tally_inv_counter',
-        USERS: 'dotsystem_users'
+        USERS: 'dotsystem_users',
+        PULSE: 'dotsystem_pulse'
     };
 
     // Load all data into cache once
@@ -83,6 +85,7 @@ window.DataController = (() => {
                 _state.nonAmcCalls = data[KEYS.NONAMCCALLS] || [];
                 _state.trash = data[KEYS.TRASH] || [];
                 _state.users = data[KEYS.USERS] || {};
+                _state.pulse = data[KEYS.PULSE] || [];
 
                 // Cleanup trash > 30 days
                 const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -406,21 +409,16 @@ window.DataController = (() => {
         return _state.transactions
             .filter(t => t.type === 'Sale')
             .reduce((sum, t) => {
-                const profitPerUnit = t.rate - (t.buyRate || 0);
-                return sum + (profitPerUnit * t.qty);
+                const rate = parseFloat(t.rate) || 0;
+                const buyRate = parseFloat(t.buyRate) || 0;
+                const qty = parseFloat(t.qty) || 0;
+                const profitPerUnit = rate - buyRate;
+                return sum + (profitPerUnit * qty);
             }, 0);
     };
 
     // Integrated Net Profit Calculation for Dashboard
     const getCalculatedNetProfit = (targetDate = new Date()) => {
-        const salesProfit = getTransactionProfit();
-        const repairProfit = getCompletedRepairRevenue(targetDate);
-        const amcProfit = getAmcMonthlyRevenue(targetDate);
-
-        // Match current month-year string format for payroll filter (e.g., "Mar 2026")
-        const monthLabel = targetDate.toLocaleString('default', { month: 'short' }) + ' ' + targetDate.getFullYear();
-        const payroll = getPayrollExpense(monthLabel);
-
         // Transaction profit for current month only
         const currentMonthSalesProfit = _state.transactions
             .filter(t => {
@@ -429,15 +427,29 @@ window.DataController = (() => {
                 return d.getMonth() === targetDate.getMonth() && d.getFullYear() === targetDate.getFullYear();
             })
             .reduce((sum, t) => {
-                const profitPerUnit = t.rate - (t.buyRate || 0);
-                return sum + (profitPerUnit * t.qty || 0);
+                const rate = parseFloat(t.rate) || 0;
+                const buyRate = parseFloat(t.buyRate) || 0;
+                const qty = parseFloat(t.qty) || 0;
+                const profitPerUnit = rate - buyRate;
+                return sum + (profitPerUnit * qty);
             }, 0);
+
+        const repairProfit = parseFloat(getCompletedRepairRevenue(targetDate)) || 0;
+        const amcProfit = parseFloat(getAmcMonthlyRevenue(targetDate)) || 0;
+
+        // Match current month-year string format for payroll filter (e.g., "Mar 2026")
+        const monthLabel = targetDate.toLocaleString('default', { month: 'short' }) + ' ' + targetDate.getFullYear();
+        const payroll = parseFloat(getPayrollExpense(monthLabel)) || 0;
 
         return (currentMonthSalesProfit + repairProfit + amcProfit) - payroll;
     };
 
     // --- Global Data Hub (Backup/Restore) ---
     const exportFullBackup = () => {
+        if (!isAdmin()) {
+            console.warn('Unauthorized export attempt');
+            return;
+        }
         const backup = {};
         Object.keys(KEYS).forEach(key => {
             const storageKey = KEYS[key];
@@ -458,6 +470,10 @@ window.DataController = (() => {
     };
 
     const importFullBackup = (jsonData) => {
+        if (!isAdmin()) {
+            console.warn('Unauthorized import attempt');
+            return { success: false, error: 'Unauthorized' };
+        }
         try {
             const data = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
             Object.values(KEYS).forEach(storageKey => {
@@ -472,6 +488,16 @@ window.DataController = (() => {
         }
     };
 
+    const isAdmin = () => {
+        const auth = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = auth.role || 'staff';
+        // Staff don't need 2FA, but Admins MUST be verified
+        if (role === 'admin') {
+            return auth.twoStepVerified === true;
+        }
+        return false;
+    };
+
     const seedUsers = () => {
         if (!_state.users || Object.keys(_state.users).length === 0) {
             const initialUsers = {
@@ -481,9 +507,33 @@ window.DataController = (() => {
                 "Prajakta": { role: "admin", name: "Prajakta" }
             };
             if (window.FirebaseDB && window.FirebaseDB.database) {
-                window.FirebaseDB.database.ref(KEYS.USERS).set(initialUsers);
+                // Check if collection exists first to avoid overwriting manually changed passwords
+                window.FirebaseDB.database.ref(KEYS.USERS).once('value', snapshot => {
+                    if (!snapshot.exists()) {
+                        window.FirebaseDB.database.ref(KEYS.USERS).set(initialUsers);
+                    }
+                });
             }
         }
+    };
+
+    const logActivity = (action, details, type = 'info') => {
+        const auth = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const user = auth.name || 'System';
+        
+        const logEntry = {
+            id: 'log_' + Date.now() + Math.random().toString(36).substr(2, 5),
+            timestamp: new Date().toISOString(),
+            user: user,
+            role: auth.role || 'staff',
+            action: action,
+            details: details,
+            type: type
+        };
+
+        _state.pulse = [logEntry, ...(_state.pulse || [])].slice(0, 100);
+        save(KEYS.PULSE, _state.pulse);
+        console.log(`📡 System Pulse: ${user} - ${action}`);
     };
 
     // Run init on Script Load
@@ -505,14 +555,15 @@ window.DataController = (() => {
         getNonAmcCalls, saveNonAmcCalls,
         getCalculatedNetProfit,
         getTrash, moveToTrash, restoreFromTrash,
+        getPulse: () => _state.pulse || [],
+        logActivity,
         exportFullBackup,
         importFullBackup,
-        getUsers, verifyUser,
         isAdmin: () => {
              const auth = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
              return auth.role === 'admin' && auth.twoStepVerified === true;
         },
+        getCurrentUser: () => JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}'),
         KEYS
-        // this is an extensive Keys contract this should be confidential // 
     };
 })();

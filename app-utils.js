@@ -100,6 +100,22 @@ function initCurrencyFormatters() {
 }
 
 
+/**
+ * Formats a number to Indian Rupee (INR) currency format.
+ * Includes NaN protection and graceful fallbacks.
+ * @param {number|string} value
+ * @returns {string}
+ */
+window.formatCurrency = (value) => {
+    const rawValue = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+    if (isNaN(rawValue)) return '₹0.00';
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 2
+    }).format(rawValue);
+};
+
 // =====================================================================
 // 2. CUSTOM DARK-MODE CONFIRM MODAL
 // =====================================================================
@@ -1370,6 +1386,26 @@ function initGlobalFeatures() {
 // =====================================================================
 // INIT ON DOM READY
 // =====================================================================
+
+/**
+ * 4. WHATSAPP CONNECT
+ * -------------------
+ * Opens WhatsApp with a pre-filled encoded message.
+ * @param {string} phone - Target phone number (e.g. 919876543210)
+ * @param {string} message - Text message to send.
+ */
+window.shareToWhatsApp = function(phone, message) {
+    if (!phone) {
+        if (window.showToast) showToast('Missing customer phone number', 'error');
+        return;
+    }
+    // Clean phone number (remove spaces, symbols)
+    const cleanPhone = phone.toString().replace(/\D/g, '');
+    const encodedMsg = encodeURIComponent(message);
+    const url = `https://wa.me/${cleanPhone}/?text=${encodedMsg}`;
+    window.open(url, '_blank');
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     _injectConfirmModal();
     _injectToastContainer();

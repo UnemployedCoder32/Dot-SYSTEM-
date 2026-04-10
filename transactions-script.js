@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = authData.name || 'User';
 
         // 1. Personalized Greeting
-        const welcomeText = document.querySelector('.header-title p');
+        const welcomeText = document.querySelector('.header-title p') || document.querySelector('.header-left p');
         if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
 
         if (role === 'staff') {
@@ -64,6 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.nav-btn-alt').forEach(link => {
                 const href = link.getAttribute('href');
                 if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
             });
         }
     };
@@ -115,12 +120,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeXml(tr.whom)}</td>
                 <td style="text-align: center; font-weight: bold;">${tr.qty}</td>
-                <td style="text-align: right;">${formatCurrency(tr.rate)}</td>
+                <td style="text-align: right;">${window.formatCurrency(tr.rate)}</td>
                 <td style="padding: 0.5rem; text-align: center;">
                     <span class="badge" style="${payStyle} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold;">${payMode}</span>
                 </td>
                 <td style="text-align: right; font-weight: 800; color: ${tr.type === 'Sale' ? 'var(--primary)' : 'inherit'}">
-                    ${formatCurrency(tr.totalValue)}
+                    ${window.formatCurrency(tr.totalValue)}
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
@@ -133,7 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const saleProfit = DataController.getTransactionProfit();
-        if (statSalesProfit) statSalesProfit.textContent = formatCurrency(saleProfit);
+        if (statSalesProfit && !document.body.classList.contains('user-is-staff')) {
+            statSalesProfit.textContent = window.formatCurrency(saleProfit);
+        }
 
         if (typeof renderProfitSparkline === 'function') renderProfitSparkline();
         filterTransactions();
@@ -385,11 +392,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (sumTotalPurchase) sumTotalPurchase.textContent = formatCurrency(totalPurchase);
-        if (sumTotalSale) sumTotalSale.textContent = formatCurrency(totalSale);
+        if (sumTotalPurchase) sumTotalPurchase.textContent = window.formatCurrency(totalPurchase);
+        if (sumTotalSale) sumTotalSale.textContent = window.formatCurrency(totalSale);
         if (sumNetProfit) {
             const net = totalSale - totalPurchase;
-            sumNetProfit.textContent = formatCurrency(net);
+            sumNetProfit.textContent = window.formatCurrency(net);
             sumNetProfit.className = `value ${net >= 0 ? 'text-green' : 'text-red'}`;
         }
     };

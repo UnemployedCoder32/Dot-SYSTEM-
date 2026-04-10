@@ -89,7 +89,6 @@
                         <i class="fa-solid fa-calendar-days"></i>
                         <span>Calendar</span>
                     </a>
-                    </a>
                 </nav>
             </div>
 
@@ -187,7 +186,47 @@
             </div>
                 </div>
             </div>
+        <header class="main-header">
+            <!-- Existing Header Content -->
+            <!-- ... -->
         </header>
+
+        <!-- DOT SYSTEM PRIME: Smart Action Ribbon (Productivity) -->
+        <div id="smartRibbonContainer" style="padding: 0 1.5rem;"></div>
+
+        <!-- DOT SYSTEM PRIME: Intelligence Hub (Dashboard 2.0) -->
+        <section class="intelligence-hub">
+            <div class="insight-grid">
+                <!-- Stock Health Radar -->
+                <div class="glass-card chart-card">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-radar"></i> Stock Health</h3>
+                        <span class="badge">Live</span>
+                    </div>
+                    <div id="stockHealthChart"></div>
+                </div>
+
+                <!-- Revenue vs Profit Pulse (Admin Only) -->
+                <div class="glass-card chart-card admin-only">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-chart-line"></i> Performance Pulse</h3>
+                        <span class="badge accent">Financial</span>
+                    </div>
+                    <div id="performancePulseChart"></div>
+                </div>
+
+                <!-- Activity Pulse (System Audit) -->
+                <div class="glass-card audit-card admin-only">
+                    <div class="chart-header">
+                        <h3><i class="fa-solid fa-bolt"></i> System Pulse</h3>
+                        <button class="btn-icon" onclick="openAuditLog()"><i class="fa-solid fa-expand"></i></button>
+                    </div>
+                    <div class="audit-list" id="auditPulseList">
+                        <div class="audit-empty">Awaiting activity...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <main class="main-content">
             <section class="add-item-section glass-card">
@@ -302,7 +341,7 @@
                             <h3 id="statStockHealth">100%</h3>
                         </div>
                     </div>
-                    <div class="insight-card glass-card border-glow-card glow-purple">
+                    <div class="insight-card glass-card border-glow-card glow-purple admin-insight">
                         <div class="insight-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;">
                             <i class="fa-solid fa-file-shield"></i>
                         </div>
@@ -539,9 +578,29 @@
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <!-- Performance & Insights -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Digital Tracking -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <script src="firebase-config.js"></script>
     
     <script src="data-controller.js"></script>
+    <!-- DOT SYSTEM PRIME: Command Palette Modal -->
+    <div id="commandPalette" class="modal-overlay">
+        <div class="palette-container glass-card">
+            <div class="palette-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="paletteSearchInput" placeholder="Jump to product, customer, or repair... (Ctrl+K)" autocomplete="off">
+                <div class="palette-hint">Esc to close</div>
+            </div>
+            <div id="paletteResults" class="palette-results">
+                <!-- Dynamic results here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="app-utils.js"></script>
     <script src="theme-system.js"></script>
     <script src="script.js"></script>

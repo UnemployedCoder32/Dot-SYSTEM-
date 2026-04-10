@@ -76,7 +76,25 @@ document.addEventListener('DOMContentLoaded', () => {
         renderExpenseCategories();
         applyAppearance();
         setupEventListeners();
+        applyRoleRestrictions();
         if (window.loadActivityLog) loadActivityLog();
+    };
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        // Note: settings.html doesn't have the same header structure as dashboard,
+        // but we can add or refine the 'brand-sub' text.
+        const brandSub = document.querySelector('.brand-sub');
+        if (brandSub) brandSub.textContent = `CORE SYSTEMS | ADMIN: ${name.toUpperCase()}`;
+
+        // auth-guard.js handles the redirection, so we assume role === 'admin' here.
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+        }
     };
 
     const loadFields = () => {

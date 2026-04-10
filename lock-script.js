@@ -26,50 +26,30 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Step 1 Login Flow ---
-window.selectUser = (name) => {
+window.handleLogin = (name) => {
     selectedUser = name;
-    identityGrid.style.display = 'none';
-    passwordSection.style.display = 'block';
-    passLabel.textContent = `Enter password for ${name}`;
-    passwordInput.value = ''; // Clear previous attempts
-    passwordInput.focus();
-};
-
-window.resetLogin = () => {
-    selectedUser = null;
-    passwordInput.value = '';
-    identityGrid.style.display = 'grid';
-    passwordSection.style.display = 'none';
-};
-
-window.handleLogin = () => {
-    const password = passwordInput.value;
-    if (!selectedUser || !password) return;
-
-    // Use DataController to check the dynamic user list loaded from Firebase
-    const result = DataController.verifyUser(selectedUser, password);
     
-    if (result.success) {
-        const authData = {
-            name: result.user.name,
-            role: result.user.role,
-            loggedInAt: new Date().toISOString(),
-            twoStepVerified: false
-        };
-        
-        localStorage.setItem(AUTH_DATA_KEY, JSON.stringify(authData));
+    // Define Roles (Hardcoded for speed, backed by DataController)
+    const isAdmin = (name === 'Shashikant' || name === 'Prajakta');
+    const role = isAdmin ? 'admin' : 'staff';
 
-        if (authData.role === 'admin') {
-            goToStep2();
-        } else {
-            // Staff users log in instantly
-            window.location.href = 'index.html';
-        }
+    const authData = {
+        name: name,
+        role: role,
+        loggedInAt: new Date().toISOString(),
+        twoStepVerified: false
+    };
+    
+    localStorage.setItem(AUTH_DATA_KEY, JSON.stringify(authData));
+
+    if (isAdmin) {
+        goToStep2();
     } else {
-        step1Card.classList.add('shake');
-        setTimeout(() => step1Card.classList.remove('shake'), 500);
-        if (window.showToast) showToast("Invalid password. Try again.", "error");
-        else alert("Invalid password. Please try again.");
+        // Staff users (Sudipto, Pankaj) log in instantly
+        if (window.showToast) showToast(`Welcome back, ${name}`, "success");
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 300);
     }
 };
 
@@ -118,6 +98,10 @@ function validatePin() {
         localStorage.setItem(AUTH_DATA_KEY, JSON.stringify(authData));
 
         // Success Feedback
+        if (window.DataController) {
+            DataController.logActivity('Admin Login', `Validated session for ${authData.name}`, 'auth');
+        }
+
         dots.forEach(dot => {
             dot.style.backgroundColor = '#10b981';
             dot.style.boxShadow = '0 0 15px #10b981';

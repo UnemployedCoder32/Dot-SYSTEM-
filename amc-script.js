@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         serviceCalls = DataController.getServiceCalls();
         renderAmcs();
         renderServiceHistory();
+        applyRoleRestrictions();
     };
 
     // Listen for cloud data updates
@@ -204,10 +205,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span style="font-size: 0.65rem; background: rgba(0,0,0,0.2); color: ${profitScore >= 70 ? '#10b981' : '#f59e0b'}; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid currentColor;">Profit: ${profitScore.toFixed(0)}%</span>
                                 <span style="font-size: 0.65rem; color: ${urgency.labelColor}; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid ${urgency.labelColor}; background: ${urgency.bg}; font-weight: 700;">${urgency.label}</span>
                             </div>
+                            <div class="amc-amount font-bold admin-only" style="font-size: 1.1rem; color: #10b981; margin-top: 0.5rem;">
+                                ${window.formatCurrency(amc.amount)}
+                            </div>
                             <div class="due-info">Next Visit: ${new Date(amc.nextServiceDate || nextService).toLocaleDateString()}</div>
                         </div>
                         <div class="summary-side">
-                            <div class="price-pill">${formatCurrency(amc.amount)}</div>
                             <i class="fa-solid fa-chevron-down expand-icon"></i>
                         </div>
                     </div>
@@ -320,7 +323,31 @@ document.addEventListener('DOMContentLoaded', () => {
         populateCallDropdowns();
     };
 
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
 
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p') || document.querySelector('.header-left p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+    };
 
     const populateCallDropdowns = () => {
         if (!callOrgSelect || !callTechSelect) return;

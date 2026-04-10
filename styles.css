@@ -653,16 +653,14 @@ header {
   color: var(--primary);
 }
 
-/* --- Role Based Restrictions --- */
-body.user-is-staff .admin-only {
-    display: none !important;
-}
-
-body.user-is-staff .nav-gear-btn[href="settings.html"] {
-    display: none !important;
-}
-
-body.user-is-staff .insight-card.admin-insight {
+/* --- Role Based Security --- */
+body.user-is-staff .admin-only,
+body.user-is-staff .profit-data,
+body.user-is-staff .nav-gear-btn[href="settings.html"],
+body.user-is-staff .insight-card.admin-insight,
+body.user-is-staff .stat-pill.admin-insight,
+body.user-is-staff #monthlyPnLSummary,
+body.user-is-staff .transaction-summary-bar.admin-insight {
     display: none !important;
 }
 
@@ -2729,4 +2727,62 @@ body.compact-mode .section-title-cyan { margin-bottom: 12px; }
     th, td { border: 1px solid #ddd !important; color: #000 !important; }
     .badge, .salary-badge, .expenses-badge { color: #000 !important; background: transparent !important; border: 1px solid #000 !important; }
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+$cssContent
+
+/* --- Smart Action Ribbons --- */
+.smart-ribbon {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 1rem 1.5rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    animation: ribbonAppear 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 5px solid var(--primary);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.smart-ribbon .ribbon-content {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.smart-ribbon .ribbon-icon {
+    width: 45px;
+    height: 45px;
+    background: var(--primary);
+    color: white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.smart-ribbon .ribbon-text h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.smart-ribbon .ribbon-text p {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.smart-ribbon .ribbon-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+@keyframes ribbonAppear {
+    from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }

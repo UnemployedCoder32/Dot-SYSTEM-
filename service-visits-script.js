@@ -50,11 +50,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         renderVisits();
+        applyRoleRestrictions();
 
         // Enable Search
         if (window.makeSearchableSelect) {
             makeSearchableSelect('technician', 'Search Technician...');
             makeSearchableSelect('category', 'Search Category...');
+        }
+    };
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p') || document.querySelector('.header-left p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Settings gear
+            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
+            if (settingsBtn) settingsBtn.style.display = 'none';
+
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
         }
     };
 
@@ -87,15 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        const formatCurrency = (amount) => {
-            return new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                maximumFractionDigits: 0
-            }).format(amount);
-        };
-
-        if (statRevenue) statRevenue.textContent = formatCurrency(totalRev);
+        if (statRevenue) statRevenue.textContent = window.formatCurrency(totalRev);
 
         if (techBody) {
             const sortedTechs = Object.entries(techStats).sort((a, b) => b[1].rev - a[1].rev).slice(0, 3);
@@ -178,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div style="font-size: 0.85rem; margin-top: 0.2rem;">${visit.category}</div>
                 </td>
                 <td><i class="fa-solid fa-user-gear" style="font-size: 0.8rem; opacity: 0.7;"></i> ${escapeXml(visit.tech)}</td>
-                <td style="font-weight: 500;">₹${fee.toLocaleString('en-IN')}</td>
+                <td class="admin-only" style="font-weight: 500;">${window.formatCurrency(fee)}</td>
                 <td>
                     <span class="visit-badge ${statusClass}" onclick="advanceStatus('${visit.id}')">
                         ${visit.status}
@@ -193,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="btn-edit" onclick="downloadVisitInvoice('${visit.id}')" title="Download Tax Invoice" style="padding: 0.4rem 0.6rem; font-size: 0.8rem;">
                             <i class="fa-solid fa-file-invoice" style="color: #ec4899;"></i>
                         </button>
-                        <button class="btn-delete" onclick="deleteVisit('${visit.id}')" style="color: var(--danger); padding: 0.4rem 0.6rem; font-size: 0.8rem;">
+                        <button class="btn-delete admin-only" onclick="deleteVisit('${visit.id}')" style="color: var(--danger); padding: 0.4rem 0.6rem; font-size: 0.8rem;">
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>

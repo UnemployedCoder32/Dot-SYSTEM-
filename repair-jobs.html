@@ -12,6 +12,8 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3b82f6">
     <link rel="apple-touch-icon" href="app-icon.png">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="auth-guard.js"></script>
     <style>
         .dashboard-grid {
@@ -299,7 +301,7 @@
 
         <!-- KPI Dashboard Section -->
         <div class="kpi-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+            <div class="insight-card glass-card admin-insight" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
                 <div>
                     <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Repair Revenue</span>
                     <h3 id="statRepairRevenue" style="font-size: 2rem; font-weight: 800; color: #10b981; margin-top: 0.5rem;">₹0.00</h3>
@@ -391,7 +393,7 @@
                                 <input type="date" id="estCompletion" required>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group admin-only">
                             <label for="partCost">Part Cost (₹)</label>
                             <input type="text" id="partCost" data-currency placeholder="Cost to you (optional)">
                         </div>
@@ -444,6 +446,8 @@
                                 <th>SR No</th>
                                 <th>Customer Details</th>
                                 <th>Device Info</th>
+                                <th style="text-align: center;">Tracking</th>
+                                <th>Connect</th>
                                 <th>Final Cost</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -516,6 +520,24 @@
                 <button class="btn btn-outline" style="flex: 1;" onclick="closeCompleteModal()">Cancel</button>
                 <button class="btn btn-success" id="confirmCompleteBtn" style="flex: 2; height: 50px; font-weight: 700;" onclick="finalizeCompletion()">
                     Complete & Deduct Stock
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- QR Tracking Modal -->
+    <div class="modal-overlay" id="qrModal">
+        <div class="modal-card" style="width: 350px; text-align: center;">
+            <div class="modal-header" style="justify-content: center;">
+                <h3 id="qrModalSrNo">HS-J-1001</h3>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Scan this QR code or share it with the customer to track the live status of the repair.</p>
+            <div id="qrModalContent" style="background: white; padding: 1rem; border-radius: 12px; display: inline-block; margin-bottom: 1.5rem;">
+                <!-- QR Image Generated here -->
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn btn-outline w-full" onclick="closeQrModal()">Close</button>
+                <button class="btn btn-accent w-full" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print
                 </button>
             </div>
         </div>

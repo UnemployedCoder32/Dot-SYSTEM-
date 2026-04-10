@@ -46,12 +46,39 @@ window.filterRepairs = () => {
         repairJobs = DataController.getRepairs();
         crmHistory = DataController.getCrmHistory();
         renderTable();
+        applyRoleRestrictions();
     };
 
     // Listen for cloud data updates
     window.addEventListener('dataUpdate', () => {
         loadState();
     });
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p') || document.querySelector('.header-left p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
+    };
 
     const generateSRNo = () => {
         // Find highest existing SR number index to avoid collisions
@@ -175,26 +202,6 @@ window.filterRepairs = () => {
 
             const totalFinal = job.price + (job.extraCharges || 0);
 
-            // Completion Countdown
-            let completionHtml = '<span style="color: var(--text-muted);">Not Set</span>';
-            if (job.estCompletion) {
-                const target = new Date(job.estCompletion);
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const diffTime = target - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                if (job.status === 'Completed') {
-                    completionHtml = `<span style="opacity: 0.5;">${new Date(job.estCompletion).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}</span>`;
-                } else if (diffDays < 0) {
-                    completionHtml = `<span style="color: #ef4444; font-weight: bold;"><i class="fa-solid fa-clock"></i> Overdue (${Math.abs(diffDays)}d)</span>`;
-                } else if (diffDays === 0) {
-                    completionHtml = `<span style="color: #f59e0b; font-weight: bold;"><i class="fa-solid fa-bolt"></i> Today!</span>`;
-                } else {
-                    completionHtml = `<span>${new Date(job.estCompletion).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}</span> <span style="font-size: 0.75rem; color: var(--text-muted);">(${diffDays}d left)</span>`;
-                }
-            }
-
             tr.innerHTML = `
                 <td>
                     <span style="color: var(--primary); font-family: monospace; font-weight: bold; font-size: 0.85rem;">${job.srNo || 'N/A'}</span>
@@ -205,30 +212,23 @@ window.filterRepairs = () => {
                         ${escapeXml(job.customerName)}
                         ${phoneCounts[job.phone] > 1 ? '<span style="font-size: 0.65rem; margin-left: 0.5rem; background: var(--accent); color: var(--bg-dark); padding: 0.1rem 0.3rem; border-radius: 4px; font-weight: bold;" title="Repeat Customer">🔄 REPEAT</span>' : ''}
                     </div>
-                    <div style="font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.2rem;">
-                        <i class="fa-solid fa-phone" style="font-size: 0.7rem;"></i> +91 ${job.phone}
-                        <a href="tel:+91${job.phone}" class="btn-call" style="padding: 0.1rem 0.35rem; font-size: 0.7rem;" title="Call Customer">
-                            <i class="fa-solid fa-phone-volume"></i>
-                        </a>
-                    </div>
                 </td>
                 <td>
                     <div style="font-weight: 500;">${job.deviceType || 'Device'} - ${escapeXml(job.model || 'N/A')}</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted); font-style: italic;">${escapeXml(job.deviceIssue)}</div>
-                    ${job.comment ? `<div style="font-size: 0.72rem; color: var(--accent); margin-top: 0.2rem;"><i class="fa-solid fa-comment-dots"></i> ${escapeXml(job.comment)}</div>` : ''}
+                </td>
+                <td style="text-align: center;">
+                    <div id="qr-${job.id}" class="qr-cell" onclick="showQrModal('${job.id}')" title="Click to enlarge tracking QR"></div>
                 </td>
                 <td>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div style="font-weight: bold;">${formatCurrency(totalFinal)}</div>
-                        ${(job.partCost / totalFinal > 0.7) ? '<i class="fa-solid fa-triangle-exclamation" style="color: var(--danger); font-size: 0.8rem;" title="Low Margin: High Part Cost!"></i>' : ''}
-                    </div>
-                    ${job.extraCharges > 0 ? `<div style="font-size: 0.7rem; color: var(--danger);">+ ${formatCurrency(job.extraCharges)} extra</div>` : ''}
-                    <div class="badge-profit" style="margin-top: 0.3rem; font-size: 0.65rem; padding: 0.1rem 0.4rem; background: rgba(16, 185, 129, 0.1); color: #10b981; border-radius: 4px; display: inline-block; font-weight: bold;">
-                        Net: ${formatCurrency(totalFinal - (job.partCost || 0))}
+                    <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                        <button class="btn-wa" onclick="sendWhatsAppStatus('${job.id}')" title="Send Live Status">
+                            <i class="fa-brands fa-whatsapp"></i> Status
+                        </button>
                     </div>
                 </td>
                 <td>
-                    <div style="font-size: 0.85rem;">${completionHtml}</div>
+                    <div style="font-weight: bold;">${formatCurrency(totalFinal)}</div>
                 </td>
                 <td>
                     <select class="status-select val-${job.status.toLowerCase().replace(/ /g, '-')}" onchange="updateJobStatus('${job.id}', this.value)">
@@ -240,25 +240,24 @@ window.filterRepairs = () => {
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                        <button class="btn-wa" onclick="sendWhatsApp('${job.id}')" title="Send WhatsApp">
-                            <i class="fa-brands fa-whatsapp"></i>
-                        </button>
-                        <button class="details-btn" style="padding: 0.4rem 0.6rem; background: rgba(99,102,241,0.1); color: #6366f1; border: 1px solid rgba(99,102,241,0.2);" onclick="openTimelineModal('${job.id}')" title="View Job Timeline">
-                            <i class="fa-solid fa-timeline"></i>
-                        </button>
-                        <button class="details-btn" style="padding: 0.4rem 0.6rem; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);" onclick="generateJobCardPDF(repairJobs.find(j => j.id === '${job.id}'))" title="Download Job Card">
-                            <i class="fa-solid fa-address-card"></i>
-                        </button>
-                        <button class="details-btn" style="padding: 0.4rem 0.6rem; background: rgba(0, 180, 219, 0.1); color: #00B4DB; border: 1px solid rgba(0, 180, 219, 0.2);" onclick="generateInvoice('${job.id}')" title="Download Invoice">
-                            <i class="fa-solid fa-file-pdf"></i>
-                        </button>
-                        <button class="btn-delete-animated" onclick="deleteJob('${job.id}')" title="Delete">
-                             <svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg>
-                        </button>
+                        <button class="details-btn" onclick="openTimelineModal('${job.id}')" title="Timeline"><i class="fa-solid fa-timeline"></i></button>
+                        <button class="details-btn" onclick="generateInvoice('${job.id}')" title="Invoice"><i class="fa-solid fa-file-pdf"></i></button>
+                        <button class="btn-delete-animated" onclick="deleteJob('${job.id}')"><svg viewBox="0 0 448 512" class="svgIcon"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"></path></svg></button>
                     </div>
                 </td>
             `;
             jobList.appendChild(tr);
+
+            // Generate mini QR for table
+            new QRCode(document.getElementById(`qr-${job.id}`), {
+                text: `https://dotsystem.track/${job.srNo}`,
+                width: 40,
+                height: 40,
+                colorDark : "#3b82f6",
+                colorLight : "transparent",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
         });
 
         totalJobsBadge.textContent = `${repairJobs.length} Job${repairJobs.length > 1 ? 's' : ''}`;
@@ -350,6 +349,9 @@ window.filterRepairs = () => {
         
         nameInput.focus();
         renderTable();
+        if (window.DataController) {
+            DataController.logActivity('New Repair', `SR No. ${newJob.srNo} created for ${newJob.customerName}`, 'success');
+        }
         showToast('Repair ticket created successfully!');
     });
 
@@ -389,6 +391,9 @@ window.filterRepairs = () => {
             repairJobs[jobIndex].timeline.push({ status: newStatus, timestamp: new Date().toLocaleString() });
             saveState();
             renderTable();
+            if (window.DataController) {
+                DataController.logActivity('Status Update', `SR No. ${repairJobs[jobIndex].srNo} changed to ${newStatus}`, 'info');
+            }
             if (window.showToast) showToast(`SR No. ${repairJobs[jobIndex].srNo} status updated to ${newStatus}`);
         }
     };
@@ -515,10 +520,13 @@ window.filterRepairs = () => {
                     transactions.push({
                         id: 'tr_usage_' + Date.now() + Math.random(),
                         date: new Date().toISOString().split('T')[0],
-                        itemName: invItem.name,
-                        type: 'Repair Use',
-                        qty: qtyUsed,
-                        rate: 0,
+                                <th>Customer Details</th>
+                                <th>Device Info</th>
+                                <th>Tracking</th>
+                                <th>Connect</th>
+                                <th>Final Cost</th>
+                                <th>Status</th>
+                                <th>Actions</th>
                         totalValue: 0,
                         relatedJobSr: repairJobs[jobIndex].srNo
                     });
@@ -581,16 +589,51 @@ window.filterRepairs = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    window.sendWhatsApp = (id) => {
+    window.sendWhatsAppStatus = (id) => {
         const job = repairJobs.find(j => j.id === id);
         if (!job) return;
 
-        const total = job.price + (job.extraCharges || 0);
-        const message = `Hi ${job.customerName}, your ${job.deviceType} (${job.model}) at DOT System is ready for collection. Total: ${formatCurrency(total)}.`;
-        const encodedMsg = encodeURIComponent(message);
-        const waUrl = `https://wa.me/91${job.phone}?text=${encodedMsg}`;
+        const statusLabel = job.status === 'Completed' ? '✅ READY FOR COLLECTION' : `🛠️ STATUS: ${job.status}`;
+        const message = `*DOT SYSTEM REPAIR UPDATE*\n\n` +
+                        `Hello ${job.customerName},\n` +
+                        `Update for your ${job.deviceType} (${job.model || 'Device'})\n\n` +
+                        `${statusLabel}\n` +
+                        `SR No: ${job.srNo}\n\n` +
+                        `Track live: https://dotsystem.track/${job.srNo}\n\n` +
+                        `Thank you!`;
         
-        window.open(waUrl, '_blank');
+        if (window.shareToWhatsApp) {
+            window.shareToWhatsApp(job.phone, message);
+        } else {
+            const encodedMsg = encodeURIComponent(message);
+            window.open(`https://wa.me/91${job.phone}?text=${encodedMsg}`, '_blank');
+        }
+    };
+
+    window.showQrModal = (id) => {
+        const job = repairJobs.find(j => j.id === id);
+        if (!job) return;
+        
+        const modal = document.getElementById('qrModal');
+        const content = document.getElementById('qrModalContent');
+        if (!modal || !content) return;
+
+        content.innerHTML = '';
+        new QRCode(content, {
+            text: `https://dotsystem.track/${job.srNo}`,
+            width: 256,
+            height: 256,
+            colorDark : "#3b82f6",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+        
+        document.getElementById('qrModalSrNo').textContent = job.srNo;
+        modal.classList.add('active');
+    };
+
+    window.closeQrModal = () => {
+        document.getElementById('qrModal').classList.remove('active');
     };
 
     window.generateInvoice = (id) => {

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set default date
         dmDateInput.value = new Date().toISOString().split('T')[0];
         loadState();
+        applyRoleRestrictions();
     };
 
     const loadState = () => {
@@ -31,6 +32,31 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('dataUpdate', () => {
         loadState();
     });
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Settings gear
+            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
+            if (settingsBtn) settingsBtn.style.display = 'none';
+
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+        }
+    };
 
     const updateInventoryDatalist = () => {
         inventory = DataController.getInventory();
@@ -54,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>
                 <input type="number" class="dm-item-qty" min="1" value="1" style="width:100%" required>
             </td>
-            <td>
+            <td class="admin-only">
                 <input type="number" class="dm-item-rate" min="0" value="0" style="width:100%">
             </td>
             <td>
@@ -147,6 +173,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         showToast(`DM #${dmNumber} processed successfully!`);
+        if (window.DataController) {
+            DataController.logActivity('DM created', `DM #${dmNumber} issued to ${whom} (Type: ${type})`, 'success');
+        }
         
         // --- Generate PDF ---
         generateDMPDF(whom, date, itemsToProcess, type, notes, dmNumber);
@@ -206,12 +235,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="font-size:0.85rem;">${itemsSummary}</td>
                 <td><span class="badge ${group.type.toLowerCase() === 'dm-out' ? 'bg-danger' : 'bg-success'}">${group.type}</span></td>
                 <td>
-                    <div style="display:flex; gap:0.5rem;">
+                    <div style="display:flex; gap:0.5rem; flex-wrap: wrap;">
                         <button class="btn btn-sm btn-outline" onclick="editDM(${group.dmNumber})" title="Edit Memo" style="color:var(--primary)">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                         <button class="btn btn-sm btn-outline" onclick="reprintDM(${group.dmNumber})" title="Reprint">
                             <i class="fa-solid fa-print"></i>
+                        </button>
+                        <button class="btn btn-sm btn-wa-mini" onclick="shareDMWhatsApp(${group.dmNumber})" title="Share on WhatsApp">
+                            <i class="fa-brands fa-whatsapp"></i>
                         </button>
                         <button class="btn btn-sm btn-delete" onclick="handleCancelDM(${group.dmNumber})" title="Cancel & Revert Stock" style="color:var(--danger)">
                             <i class="fa-solid fa-ban"></i>
@@ -221,6 +253,42 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             dmHistoryList.appendChild(trRow);
         });
+    };
+
+    window.shareDMWhatsApp = (num) => {
+        const transactions = DataController.getTransactions();
+        const group = transactions.filter(t => t.dmNumber == num);
+        if (group.length === 0) return;
+
+        const first = group[0];
+        const itemLines = group.map(g => `• ${g.itemName} (x${g.qty})`).join('\n');
+        
+        const message = `*DOT SYSTEM - DELIVERY MEMO*\n\n` +
+                        `Hello ${first.whom},\n` +
+                        `Ref: DM #${num} (${first.type})\n\n` +
+                        `*Items:*\n${itemLines}\n\n` +
+                        `*Notes:* ${first.notes || 'N/A'}\n\n` +
+                        `Thank you!`;
+        
+        // Since DM doesn't always have a phone field in the form yet, we'll prompt or check if it exists in CRM
+        const crm = DataController.getCrmHistory();
+        let phone = "";
+        // Try to find phone by name in CRM
+        for (let p in crm) {
+            if (crm[p].name === first.whom) {
+                phone = p;
+                break;
+            }
+        }
+
+        if (!phone) {
+            phone = prompt(`Enter WhatsApp number for ${first.whom} (10 digits):`);
+            if (!phone || phone.length !== 10) return;
+        }
+
+        if (window.shareToWhatsApp) {
+            window.shareToWhatsApp(phone, message);
+        }
     };
 
     window.handleCancelDM = async (num) => {
@@ -286,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>
                     <input type="number" class="dm-item-qty" min="1" value="${item.qty}" style="width:100%" required>
                 </td>
-                <td>
+                <td class="admin-only">
                     <input type="number" class="dm-item-rate" min="0" value="${item.rate}" style="width:100%">
                 </td>
                 <td>

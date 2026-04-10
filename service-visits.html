@@ -120,7 +120,7 @@
         <!-- Insights KPI Section -->
         <div class="kpi-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
             <!-- Revenue KPI -->
-            <div class="insight-card glass-card" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
+            <div class="insight-card glass-card admin-insight" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem;">
                 <div>
                     <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Total Service Revenue</span>
                     <h3 id="statVisitRevenue" style="font-size: 2rem; font-weight: 800; color: #10b981; margin-top: 0.5rem;">₹0</h3>
@@ -131,7 +131,7 @@
             </div>
             
             <!-- Tech Performance Table -->
-            <div class="insight-card glass-card" style="padding: 1.25rem; overflow-y: auto; max-height: 120px;">
+            <div class="insight-card glass-card admin-insight" style="padding: 1.25rem; overflow-y: auto; max-height: 120px;">
                 <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 0.5rem;">Top Technicians</span>
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
                     <thead>
@@ -203,9 +203,9 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group admin-only">
                             <label for="serviceCharge">Service Charge (₹)</label>
-                            <input type="text" id="serviceCharge" data-currency placeholder="e.g. 1,500" required>
+                            <input type="text" id="serviceCharge" data-currency placeholder="e.g. 1,500" value="0">
                             <div class="revenue-toggle">
                                 <input type="checkbox" id="trackInPayroll" checked>
                                 <label for="trackInPayroll">Track as technician revenue in Payroll</label>
@@ -242,7 +242,7 @@
                                     <th>Customer</th>
                                     <th>Details</th>
                                     <th>Technician</th>
-                                    <th>Fee</th>
+                                    <th class="admin-only">Fee</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>

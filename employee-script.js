@@ -30,12 +30,30 @@ document.addEventListener('DOMContentLoaded', () => {
     let modalChartInst = null;
 
     // --- Utilities ---
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 2
-        }).format(amount);
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p') || document.querySelector('.header-left p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+
+            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
+                el.style.display = 'none';
+            });
+        }
     };
 
     const saveState = () => {
@@ -48,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMonthSelector();
         renderTable();
         updateCharts();
+        applyRoleRestrictions();
     };
 
     // Listen for cloud data updates
