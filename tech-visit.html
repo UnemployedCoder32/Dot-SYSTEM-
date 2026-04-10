@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Field Tech | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <script src="auth-guard.js"></script>
+    <style>
+        /* Mobile-First Reset */
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            line-height: 1.5;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Mobile Navbar */
+        .mobile-nav {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mobile-nav h1 { margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
+        .back-btn { background: none; border: none; color: #3b82f6; font-size: 1.5rem; cursor: pointer; padding: 0; }
+        
+        .container { padding: 1rem; max-width: 600px; margin: 0 auto; }
+        
+        .job-card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        .job-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+        .job-title { font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem; }
+        .job-addr { font-size: 0.85rem; color: #94a3b8; display: flex; gap: 0.5rem; }
+        
+        .badge {
+            background: rgba(59, 130, 246, 0.2); color: #60a5fa;
+            padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;
+        }
+
+        .form-section { margin-top: 1.5rem; }
+        .form-label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: 500; }
+        .form-input {
+            width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; padding: 0.75rem; border-radius: 8px; font-family: inherit; font-size: 1rem; margin-bottom: 1rem;
+        }
+        .form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+
+        .signature-container {
+            background: #ffffff;
+            border-radius: 8px;
+            width: 100%;
+            height: 200px;
+            overflow: hidden;
+            border: 2px dashed #94a3b8;
+            position: relative;
+            margin-bottom: 1rem;
+            touch-action: none;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        
+        .photo-upload {
+            background: rgba(0,0,0,0.2); border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: 8px; padding: 1.5rem; text-align: center; color: #94a3b8;
+            cursor: pointer; transition: all 0.2s; position: relative; margin-bottom: 1rem;
+        }
+        .photo-upload.has-image { border: none; padding: 0; overflow: hidden; height: 180px; }
+        .photo-upload img { width: 100%; height: 100%; object-fit: cover; }
+        #photoInput { display: none; }
+
+        .btn {
+            display: block; width: 100%; padding: 1rem; border: none; border-radius: 8px;
+            font-weight: 600; font-size: 1rem; cursor: pointer; text-align: center; transition: all 0.2s;
+        }
+        .btn-primary { background: #3b82f6; color: white; box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3); }
+        .btn-success { background: #10b981; color: white; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3); }
+        .btn-clear { background: rgba(239, 68, 68, 0.1); color: #ef4444; margin-bottom: 1.5rem; }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background: #1e293b; color: white; padding: 1rem 1.5rem; border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100; border-left: 4px solid #10b981; font-weight: 500;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+    <nav class="mobile-nav">
+        <button class="back-btn" onclick="window.history.back()"><i class="fa-solid fa-arrow-left"></i></button>
+        <h1><i class="fa-solid fa-briefcase"></i> Field Tech</h1>
+        <div style="width: 24px;"></div>
+    </nav>
+
+    <div class="container">
+        <div class="job-card" id="jobSelectorPanel">
+            <h2 style="margin-top: 0; font-size: 1.2rem;">Select Open Job</h2>
+            <select id="activeJobsSelect" class="form-input">
+                <option value="">Loading tasks...</option>
+            </select>
+            <button class="btn btn-primary" onclick="loadSelectedJob()">Start Work</button>
+        </div>
+
+        <div id="servicePanel" style="display: none;">
+            <div class="job-card">
+                <div class="job-header">
+                    <div>
+                        <div class="job-title" id="dispCustomer">Customer Name</div>
+                        <div class="job-addr"><i class="fa-solid fa-location-dot"></i> <span id="dispAddress">Address</span></div>
+                    </div>
+                    <span class="badge" id="dispType">Repair</span>
+                </div>
+                <div style="font-size: 0.9rem; color: #cbd5e1; margin-top: 0.5rem;" id="dispIssue">Issue Description...</div>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">Resolution Notes</label>
+                <textarea class="form-input" id="techNotes" rows="3" placeholder="What was done?"></textarea>
+
+                <label class="form-label">Photo Evidence (Optional)</label>
+                <div class="photo-upload" id="photoDropzone" onclick="document.getElementById('photoInput').click()">
+                    <i class="fa-solid fa-camera" style="font-size: 2rem; margin-bottom: 0.5rem; display: block;"></i>
+                    Tap to upload photo
+                </div>
+                <input type="file" id="photoInput" accept="image/*" capture="environment">
+
+                <label class="form-label">Customer Signature</label>
+                <div class="signature-container">
+                    <canvas id="sigCanvas"></canvas>
+                </div>
+                <button class="btn btn-clear" onclick="clearSignature()">Clear Signature</button>
+
+                <button class="btn btn-success" onclick="completeJob()" style="padding: 1.25rem; font-size: 1.1rem;">
+                    <i class="fa-solid fa-check-double"></i> Complete & Submit
+                </button>
+                <button class="btn btn-primary" onclick="window.location.reload()" style="margin-top: 1rem; background: rgba(255,255,255,0.1); color: white;">
+                    Restart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">Job completed successfully!</div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="data-controller.js"></script>
+    <script src="tech-visit.js"></script>
+</body>
+</html>

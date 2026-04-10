@@ -271,8 +271,22 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="price">Selling Price (₹)</label>
-                            <input type="text" id="price" data-currency placeholder="e.g. 1,500">
+                            <label for="price" style="display: flex; justify-content: space-between; align-items: center;">
+                                Selling Price (₹)
+                                <span style="font-size: 0.7rem; color: var(--text-muted);">Incl. GST</span>
+                            </label>
+                            <input type="text" id="price" data-currency placeholder="e.g. 1,500" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gstRate">GST Slab (%)</label>
+                            <select id="gstRate">
+                                <option value="0">0% (Nil)</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18" selected>18% (Standard)</option>
+                                <option value="28">28%</option>
+                            </select>
                         </div>
                     </div>
 
@@ -321,6 +335,15 @@
                         <div class="insight-details">
                             <span class="insight-label">Total Unique Items</span>
                             <h3 id="statTotalItems">0</h3>
+                        </div>
+                    </div>
+                    <div class="insight-card glass-card border-glow-card glow-blue">
+                        <div class="insight-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div class="insight-details">
+                            <span class="insight-label">Predicted OOS (Next 30 Days)</span>
+                            <h3 id="statOosPredict">0 Items</h3>
                         </div>
                     </div>
                     <div class="insight-card glass-card border-glow-card glow-orange admin-insight">

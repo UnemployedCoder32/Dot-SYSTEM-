@@ -71,20 +71,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (role === 'staff') {
             document.body.classList.add('user-is-staff');
             
-            // Hide Settings gear
-            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
-            if (settingsBtn) settingsBtn.style.display = 'none';
-
-            // Hide Restricted Nav Links
-            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
-            document.querySelectorAll('.nav-btn-alt').forEach(link => {
-                const href = link.getAttribute('href');
-                if (restrictedLinks.includes(href)) link.style.display = 'none';
-            });
-
-            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            // 2. Hide all admin-only elements
             document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
                 el.style.display = 'none';
+            });
+
+            // 3. Hide Restricted Sidebar/Nav links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html', 'staff'];
+            document.querySelectorAll('.nav-btn-alt, .sidebar-link, .nav-link').forEach(link => {
+                const href = link.getAttribute('href') || '';
+                const text = link.textContent.toLowerCase();
+                const isRestricted = restrictedLinks.some(rl => href.includes(rl) || text.includes(rl));
+                
+                if (isRestricted) {
+                    link.style.display = 'none';
+                    if (link.parentElement.tagName === 'LI') link.parentElement.style.display = 'none';
+                }
             });
         }
     };

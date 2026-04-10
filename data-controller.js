@@ -16,7 +16,8 @@ window.DataController = (() => {
         nonAmcCalls: [],
         trash: [],
         users: {},
-        pulse: []
+        pulse: [],
+        expenses: []
     };
 
     // localStorage keys
@@ -33,7 +34,8 @@ window.DataController = (() => {
         TRASH: 'tally_trash',
         INV_COUNTER: 'tally_inv_counter',
         USERS: 'dotsystem_users',
-        PULSE: 'dotsystem_pulse'
+        PULSE: 'dotsystem_pulse',
+        EXPENSES: 'dotsystem_expenses'
     };
 
     // Load all data into cache once
@@ -48,16 +50,19 @@ window.DataController = (() => {
         _state.serviceCalls = JSON.parse(localStorage.getItem(KEYS.SERVICECALLS)) || [];
         _state.nonAmcCalls = JSON.parse(localStorage.getItem(KEYS.NONAMCCALLS)) || [];
         _state.trash = JSON.parse(localStorage.getItem(KEYS.TRASH)) || [];
+        _state.expenses = JSON.parse(localStorage.getItem(KEYS.EXPENSES)) || [];
+        _state.users = JSON.parse(localStorage.getItem(KEYS.USERS)) || {};
+        _state.pulse = JSON.parse(localStorage.getItem(KEYS.PULSE)) || [];
 
         // Cleanup trash > 30 days
         const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
-        const originalLength = _state.trash.length;
-        _state.trash = _state.trash.filter(item => item.deletedAt > limitDate);
-        if (_state.trash.length !== originalLength) {
+        const originalLength = (_state.trash || []).length;
+        _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
+        if ((_state.trash || []).length !== originalLength) {
             fallbackSave(KEYS.TRASH, _state.trash);
         }
 
-        console.log('📦 DataController: Initialized Cache (LocalStorage)');
+        console.log('📦 DataController: Initialized Local PWA Cache.');
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
     };
 
@@ -67,25 +72,38 @@ window.DataController = (() => {
     };
 
     const init = () => {
+        // ALWAYS load LocalStorage first for instant offline PWA operation.
+        // This ensures the screen never stays blank while waiting for Firebase.
+        fallbackInit();
+
         if (window.FirebaseDB && window.FirebaseDB.database) {
             const db = window.FirebaseDB.database;
-            console.log('🔥 DataController: Connecting to Firebase...');
-            
+            console.log('🔥 DataController: Connecting to Firebase Cloud...');
+
             db.ref('/').on('value', (snapshot) => {
                 const data = snapshot.val() || {};
-                
-                _state.inventory = data[KEYS.INVENTORY] || [];
-                _state.suppliers = data[KEYS.SUPPLIERS] || [];
-                _state.repairJobs = data[KEYS.REPAIRS] || [];
-                _state.amcContracts = data[KEYS.AMC] || [];
-                _state.employees = data[KEYS.EMPLOYEES] || [];
+
+                // Normalize arrays to fix Firebase's array-to-object indexing bug 
+                // when elements are deleted in the middle.
+                const normalize = (val) => {
+                    if (!val) return [];
+                    if (Array.isArray(val)) return val;
+                    return Object.values(val).filter(Boolean);
+                };
+
+                _state.inventory = normalize(data[KEYS.INVENTORY]);
+                _state.suppliers = normalize(data[KEYS.SUPPLIERS]);
+                _state.repairJobs = normalize(data[KEYS.REPAIRS]);
+                _state.amcContracts = normalize(data[KEYS.AMC]);
+                _state.employees = normalize(data[KEYS.EMPLOYEES]);
                 _state.crmHistory = data[KEYS.CRM] || {};
-                _state.transactions = data[KEYS.TRANSACTIONS] || [];
-                _state.serviceCalls = data[KEYS.SERVICECALLS] || [];
-                _state.nonAmcCalls = data[KEYS.NONAMCCALLS] || [];
-                _state.trash = data[KEYS.TRASH] || [];
+                _state.transactions = normalize(data[KEYS.TRANSACTIONS]);
+                _state.serviceCalls = normalize(data[KEYS.SERVICECALLS]);
+                _state.nonAmcCalls = normalize(data[KEYS.NONAMCCALLS]);
+                _state.trash = normalize(data[KEYS.TRASH]);
                 _state.users = data[KEYS.USERS] || {};
-                _state.pulse = data[KEYS.PULSE] || [];
+                _state.pulse = normalize(data[KEYS.PULSE]);
+                _state.expenses = normalize(data[KEYS.EXPENSES]);
 
                 // Cleanup trash > 30 days
                 const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -95,30 +113,38 @@ window.DataController = (() => {
                     save(KEYS.TRASH, _state.trash);
                 }
 
-                console.log('📦 DataController: Initialized Cache (Firebase)');
+                console.log('☁️ DataController: Snapped to latest Cloud State');
+                // We dispatch dataUpdate. The optimistic PWA state gets seamlessly replaced by Cloud Truth.
                 window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
             }, (error) => {
-                console.error('🔥 Firebase Read Error:', error);
-                fallbackInit();
+                console.error('🔥 Firebase Sync Error:', error);
             });
         } else {
-            console.warn("🔥 Firebase not initialized. Falling back to LocalStorage.");
-            fallbackInit();
+            console.warn("🔥 Firebase not initialized. Operating in Offline PWA Mode.");
         }
     };
 
     const save = (key, data) => {
+        // 1. Always save to LocalStorage FIRST. 
+        // This ensures zero data loss on page refresh if the device is currently offline.
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (e) {
+            console.error('LocalStorage persistence failed:', e);
+        }
+
+        // 2. Dispatch event immediately for 0ms snappy UI update
+        window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
+
+        // 3. Sync to Firebase Queue
         if (window.FirebaseDB && window.FirebaseDB.database) {
             const db = window.FirebaseDB.database;
             db.ref(key).set(data).then(() => {
-                // Also notify immediately for snappier UI
-                window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
+                // Firebase will automatically trigger .on('value') upon successful backend write, 
+                // keeping all clients perfectly synced.
             }).catch(err => {
-                console.error("Firebase Write Error:", err);
-                fallbackSave(key, data);
+                console.error("☁️ Firebase Write Error:", err);
             });
-        } else {
-            fallbackSave(key, data);
         }
     };
 
@@ -232,6 +258,7 @@ window.DataController = (() => {
             rate: rate,
             buyRate: buyRate,
             totalValue: qty * rate,
+            gstRate: item.gstRate || 18,
             paymentMode: meta.paymentMode || 'Cash',
             notes: meta.notes || '',
             whom: meta.whom || (type === 'Sale' || type === 'DM-Out' ? 'Customer' : 'Supplier'),
@@ -427,10 +454,12 @@ window.DataController = (() => {
                 return d.getMonth() === targetDate.getMonth() && d.getFullYear() === targetDate.getFullYear();
             })
             .reduce((sum, t) => {
-                const rate = parseFloat(t.rate) || 0;
+                const gstRate = parseFloat(t.gstRate || 18);
+                // Remove GST liability from revenue for accurate Net Profit
+                const baseRate = parseFloat(t.rate) / (1 + (gstRate / 100));
                 const buyRate = parseFloat(t.buyRate) || 0;
                 const qty = parseFloat(t.qty) || 0;
-                const profitPerUnit = rate - buyRate;
+                const profitPerUnit = baseRate - buyRate;
                 return sum + (profitPerUnit * qty);
             }, 0);
 
@@ -441,7 +470,72 @@ window.DataController = (() => {
         const monthLabel = targetDate.toLocaleString('default', { month: 'short' }) + ' ' + targetDate.getFullYear();
         const payroll = parseFloat(getPayrollExpense(monthLabel)) || 0;
 
-        return (currentMonthSalesProfit + repairProfit + amcProfit) - payroll;
+        const officeOverheads = (_state.expenses || [])
+            .filter(e => {
+                const d = new Date(e.date);
+                return d.getMonth() === targetDate.getMonth() && d.getFullYear() === targetDate.getFullYear();
+            })
+            .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+        return (currentMonthSalesProfit + repairProfit + amcProfit) - (payroll + officeOverheads);
+    };
+
+    // --- Expenses ---
+    const getExpenses = () => _state.expenses || [];
+    const saveExpenses = (data) => {
+        _state.expenses = data;
+        save(KEYS.EXPENSES, data);
+    };
+
+    // --- Elite Analytics ---
+    const getBurnRateReport = () => {
+        const report = [];
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        
+        _state.inventory.forEach(item => {
+            // Find sales of this item in last 30 days
+            const recentSales = _state.transactions.filter(t => 
+                t.itemId === item.id && 
+                t.type === 'Sale' && 
+                new Date(t.timestamp).getTime() > thirtyDaysAgo
+            ).reduce((sum, t) => sum + (parseFloat(t.qty) || 0), 0);
+
+            const dailyBurn = recentSales / 30;
+            const daysLeft = dailyBurn > 0 ? (item.qty / dailyBurn) : Infinity;
+
+            if (item.qty > 0 && daysLeft !== Infinity) {
+                const oosDate = new Date();
+                oosDate.setDate(oosDate.getDate() + daysLeft);
+                report.push({ ...item, dailyBurn, daysLeft, oosDate });
+            }
+        });
+        return report.sort((a, b) => a.daysLeft - b.daysLeft);
+    };
+
+    const getCustomerCLV = () => {
+        const clvMap = {};
+        
+        // From Sales Transactions
+        _state.transactions.filter(t => t.type === 'Sale').forEach(t => {
+            const org = t.whom || 'Unknown';
+            if (!clvMap[org]) clvMap[org] = { revenue: 0, repairs: 0, purchases: 0 };
+            clvMap[org].revenue += parseFloat(t.totalValue) || 0;
+            clvMap[org].purchases += 1;
+        });
+
+        // From Repairs
+        _state.repairJobs.filter(j => j.status === 'Completed').forEach(j => {
+            const name = j.customerName || 'Unknown';
+            const price = (parseFloat(j.price) || 0) + (parseFloat(j.extraCharges) || 0);
+            if (!clvMap[name]) clvMap[name] = { revenue: 0, repairs: 0, purchases: 0 };
+            clvMap[name].revenue += price;
+            clvMap[name].repairs += 1;
+        });
+
+        // Form Rank Array
+        return Object.entries(clvMap)
+            .map(([name, data]) => ({ name, ...data }))
+            .sort((a, b) => b.revenue - a.revenue);
     };
 
     // --- Global Data Hub (Backup/Restore) ---
@@ -556,6 +650,8 @@ window.DataController = (() => {
         getCalculatedNetProfit,
         getTrash, moveToTrash, restoreFromTrash,
         getPulse: () => _state.pulse || [],
+        getExpenses, saveExpenses,
+        getBurnRateReport, getCustomerCLV,
         logActivity,
         exportFullBackup,
         importFullBackup,

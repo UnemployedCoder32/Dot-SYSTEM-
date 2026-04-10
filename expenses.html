@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Expenses | DOT System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <script src="auth-guard.js"></script>
+</head>
+<body class="page-entering admin-only-page">
+    <div class="background-effect"></div>
+    <div class="background-effect effect-2"></div>
+    
+    <div class="container">
+        <header>
+            <div class="header-main">
+                <div class="header-title">
+                    <h1><i class="fa-solid fa-wallet"></i> Office Expenses</h1>
+                    <p>Track Overheads & Operational Costs</p>
+                </div>
+                
+                <nav class="header-nav">
+                    <a href="index.html" class="nav-btn-alt" title="Dashboard">
+                        <i class="fa-solid fa-house"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="transactions.html" class="nav-btn-alt" title="Ledger">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="calendar.html" class="nav-btn-alt" title="Business Calendar">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        <span>Calendar</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="header-system">
+                <div class="system-actions" style="display: flex; align-items: center; gap: 4px;">
+                    <div class="theme-switch-wrapper">
+                        <label class="switch" for="themeCheckbox">
+                            <input type="checkbox" id="themeCheckbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <section class="insights-bar fade-in" style="margin-bottom: 2rem;">
+                <div class="insights-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="insight-card glass-card border-glow-card glow-red">
+                        <div class="insight-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+                            <i class="fa-solid fa-money-bill-transfer"></i>
+                        </div>
+                        <div class="insight-details">
+                            <span class="insight-label">Expenses (This Month)</span>
+                            <h3 id="statMonthExpense">₹0.00</h3>
+                        </div>
+                    </div>
+                    <div class="insight-card glass-card border-glow-card glow-blue">
+                        <div class="insight-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div class="insight-details">
+                            <span class="insight-label">Staff Salaries Total</span>
+                            <h3 id="statTotalSalaries">₹0.00</h3>
+                        </div>
+                    </div>
+                    <div class="insight-card glass-card border-glow-card glow-orange">
+                        <div class="insight-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                            <i class="fa-solid fa-plug"></i>
+                        </div>
+                        <div class="insight-details">
+                            <span class="insight-label">Bills & Utilities</span>
+                            <h3 id="statTotalUtilities">₹0.00</h3>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass-card" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h2><i class="fa-solid fa-list"></i> Expense Ledger</h2>
+                    <p style="color: var(--text-muted); font-size: 0.85rem;">All operational overheads</p>
+                </div>
+                <button class="btn btn-primary" onclick="openExpenseModal()">
+                    <i class="fa-solid fa-plus"></i> Record Expense
+                </button>
+            </section>
+
+            <section class="glass-card">
+                <div class="table-container">
+                    <table class="tally-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Amount (₹)</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseList">
+                            <!-- Expense Rows -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bluemark-signature"><i class="fa-solid fa-circle-check"></i> BLUEMARK Authorized</div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Expense Modal -->
+    <div class="modal" id="expenseModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-wallet text-cyan"></i> Record Expense</h2>
+                <button class="modal-close" onclick="closeExpenseModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="expenseForm">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Date</label>
+                    <input type="date" id="expDate" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Category</label>
+                    <select id="expCategory" required>
+                        <option value="Salary">Staff Salary</option>
+                        <option value="Rent">Office Rent</option>
+                        <option value="Electricity">Electricity / Utilities</option>
+                        <option value="Marketing">Marketing / Ads</option>
+                        <option value="Miscellaneous">Miscellaneous</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Amount (₹)</label>
+                    <input type="number" id="expAmount" min="0" step="0.01" required placeholder="0.00">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label>Status</label>
+                    <div class="transaction-toggle" style="grid-template-columns: 1fr 1fr; gap: 4px;">
+                        <input type="radio" id="stPaid" name="expStatus" value="Paid" checked>
+                        <label for="stPaid" style="font-size: 0.85rem;">Paid</label>
+                        <input type="radio" id="stPending" name="expStatus" value="Pending">
+                        <label for="stPending" style="font-size: 0.85rem;">Pending</label>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label>Description</label>
+                    <textarea id="expDesc" rows="2" placeholder="e.g. November Rent, Internet Bill..."></textarea>
+                </div>
+
+                <button type="submit" id="expSubmitBtn" class="btn btn-primary" style="width: 100%;">
+                    Save Expense
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    
+    <script src="data-controller.js"></script>
+    <script src="app-utils.js"></script>
+    <script src="theme-system.js"></script>
+    <script src="expense-script.js"></script>
+    <script src="notifications.js"></script>
+    <script src="transitions.js"></script>
+    <script src="global-banner.js"></script>
+</body>
+</html>

@@ -55,20 +55,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (role === 'staff') {
             document.body.classList.add('user-is-staff');
             
-            // Hide Settings gear
-            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
-            if (settingsBtn) settingsBtn.style.display = 'none';
-
-            // Hide Restricted Nav Links
-            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
-            document.querySelectorAll('.nav-btn-alt').forEach(link => {
-                const href = link.getAttribute('href');
-                if (restrictedLinks.includes(href)) link.style.display = 'none';
-            });
-
-            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            // 2. Hide all admin-only elements
             document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
                 el.style.display = 'none';
+            });
+
+            // 3. Hide Restricted Sidebar/Nav links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html', 'staff'];
+            document.querySelectorAll('.nav-btn-alt, .sidebar-link, .nav-link').forEach(link => {
+                const href = link.getAttribute('href') || '';
+                const text = link.textContent.toLowerCase();
+                const isRestricted = restrictedLinks.some(rl => href.includes(rl) || text.includes(rl));
+                
+                if (isRestricted) {
+                    link.style.display = 'none';
+                    if (link.parentElement.tagName === 'LI') link.parentElement.style.display = 'none';
+                }
             });
         }
     };
@@ -106,6 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const payColors = { Cash: '#10b981', UPI: '#6366f1', Card: '#3b82f6', Credit: '#f59e0b' };
             const payStyle = `background: ${payColors[payMode]}20; color: ${payColors[payMode]}; border: 1px solid ${payColors[payMode]}40;`;
 
+            const gstRate = parseFloat(tr.gstRate || 18);
+            const baseTotal = tr.totalValue / (1 + (gstRate / 100));
+            const gstAmount = tr.totalValue - baseTotal;
+            const singleCgst = gstAmount / 2;
+            const cgstStr = window.formatCurrency(singleCgst);
+
             row.innerHTML = `
                 <td>
                     <input type="checkbox" onchange="toggleTrSelect('${tr.id}', this)" ${selectedTransactions.has(tr.id) ? 'checked' : ''}>
@@ -121,6 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="font-size: 0.85rem; color: var(--text-muted);">${escapeXml(tr.whom)}</td>
                 <td style="text-align: center; font-weight: bold;">${tr.qty}</td>
                 <td style="text-align: right;">${window.formatCurrency(tr.rate)}</td>
+                <td style="text-align: right; font-size: 0.75rem; color: #f59e0b;">
+                    <div>${gstRate}% GST</div>
+                    <div style="opacity: 0.8;">CGST/SGST: ${cgstStr}</div>
+                </td>
                 <td style="padding: 0.5rem; text-align: center;">
                     <span class="badge" style="${payStyle} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: bold;">${payMode}</span>
                 </td>

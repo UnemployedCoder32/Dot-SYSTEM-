@@ -144,23 +144,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (role === 'staff') {
             document.body.classList.add('user-is-staff');
             
-            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
+            // 2. Hide all admin-only elements (Financials, Price Hub, etc.)
             document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
                 el.style.display = 'none';
             });
 
-            // Hide Restricted Sidebar/Nav links
-            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
-            document.querySelectorAll('.nav-btn-alt, .sidebar-link').forEach(link => {
-                const href = link.getAttribute('href');
-                if (restrictedLinks.includes(href)) link.style.display = 'none';
-            });
-            // 3. Hide all admin-only elements (Financials, Price Hub, etc.)
-            document.querySelectorAll('.admin-only, .admin-insight').forEach(el => {
-                el.style.display = 'none';
+            // 3. Hide Restricted Sidebar/Nav links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html', 'staff'];
+            document.querySelectorAll('.nav-btn-alt, .sidebar-link, .nav-link').forEach(link => {
+                const href = link.getAttribute('href') || '';
+                const text = link.textContent.toLowerCase();
+                const isRestricted = restrictedLinks.some(rl => href.includes(rl) || text.includes(rl));
+                
+                if (isRestricted) {
+                    link.style.display = 'none';
+                    // Also hide parent li if in a list
+                    if (link.parentElement.tagName === 'LI') link.parentElement.style.display = 'none';
+                }
             });
 
-            // Remove Toolbar Dividers near hidden items
+            // 4. Remove Toolbar Dividers near hidden items
             document.querySelectorAll('.toolbar-divider').forEach(div => {
                 if (div.previousElementSibling?.style.display === 'none' || div.nextElementSibling?.style.display === 'none') {
                     div.style.display = 'none';
@@ -223,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 minStock: Math.max(0, parseFloat(minStockInput.value) || 0),
                 buyPrice: Math.max(0, parseFloat(buyPriceInput.dataset.rawValue || buyPriceInput.value) || 0),
                 price: Math.max(0, parseFloat(priceInput.dataset.rawValue || priceInput.value) || 0),
+                gstRate: parseFloat(document.getElementById('gstRate')?.value || 18),
                 supplier: supplierSelect ? supplierSelect.value : ''
             };
 
@@ -284,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('minStock')) document.getElementById('minStock').value = item.minStock;
         if (document.getElementById('buyPrice')) document.getElementById('buyPrice').value = item.buyPrice || 0;
         if (document.getElementById('price')) document.getElementById('price').value = item.price;
+        if (document.getElementById('gstRate')) document.getElementById('gstRate').value = item.gstRate || 18;
         if (document.getElementById('partSupplier')) document.getElementById('partSupplier').value = item.supplier || '';
 
         if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-save"></i> Update Part Info';
@@ -570,11 +575,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderSmartLowStockBanner(data);
 
-        // Update AMC Revenue from shared localStorage
+        // AMC Revenue
         updateAmcInsights();
         calculateNetProfit();
         renderTopProducts();
         
+        // Phase 1: Predictive OOS
+        const statOosPredict = document.getElementById('statOosPredict');
+        if (statOosPredict && window.DataController && DataController.getBurnRateReport) {
+            const burnReport = DataController.getBurnRateReport();
+            const imminentOos = burnReport.filter(i => i.daysLeft <= 30);
+            statOosPredict.textContent = `${imminentOos.length} Items`;
+            if (imminentOos.length > 0) {
+                statOosPredict.style.color = '#ef4444';
+            } else {
+                statOosPredict.style.color = '#10b981';
+            }
+        }
+
         // Phase 3 Features
         renderDeadStock();
     };
