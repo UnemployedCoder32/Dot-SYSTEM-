@@ -1,0 +1,24 @@
+{
+  "name": "dotsystem-inventory",
+  "version": "1.0.0",
+  "description": "",
+  "main": "amc-script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UnemployedCoder32/Dot-SYSTEM-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/UnemployedCoder32/Dot-SYSTEM-/issues"
+  },
+  "homepage": "https://github.com/UnemployedCoder32/Dot-SYSTEM-#readme",
+  "dependencies": {
+    "jsdom": "^29.0.2"
+  }
+}

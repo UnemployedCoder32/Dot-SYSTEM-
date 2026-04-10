@@ -201,12 +201,18 @@ window.filterRepairs = () => {
             phoneCounts[j.phone] = (phoneCounts[j.phone] || 0) + 1;
         });
 
+        const clvStats = DataController.getCustomerCLV() || [];
+        const top5Diamond = clvStats.slice(0, 5).filter(c => c.totalValue > 5000).map(c => c.name.toLowerCase());
+
         filteredJobs.forEach((job, index) => {
             const tr = document.createElement('tr');
             tr.className = 'fade-in';
             tr.style.animationDelay = `${index * 0.05}s`;
 
             const totalFinal = job.price + (job.extraCharges || 0);
+            
+            const isDiamond = top5Diamond.includes(job.customerName.toLowerCase());
+            const diamondHtml = isDiamond ? `<i class="fa-solid fa-gem" style="color: #60a5fa; font-size: 0.8rem; margin-left: 0.3rem;" title="Diamond Client"></i>` : '';
 
             tr.innerHTML = `
                 <td>
@@ -215,7 +221,7 @@ window.filterRepairs = () => {
                 </td>
                 <td>
                     <div style="font-weight: 600;">
-                        ${escapeXml(job.customerName)}
+                        ${escapeXml(job.customerName)} ${diamondHtml}
                         ${phoneCounts[job.phone] > 1 ? '<span style="font-size: 0.65rem; margin-left: 0.5rem; background: var(--accent); color: var(--bg-dark); padding: 0.1rem 0.3rem; border-radius: 4px; font-weight: bold;" title="Repeat Customer">🔄 REPEAT</span>' : ''}
                     </div>
                 </td>

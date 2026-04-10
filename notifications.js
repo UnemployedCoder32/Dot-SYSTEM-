@@ -18,11 +18,21 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
     });
 
+    const safeParse = (key, fallback) => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw || raw === 'undefined' || raw === '[object Object]') return fallback;
+            return JSON.parse(raw) || fallback;
+        } catch(e) { return fallback; }
+    };
+
     const checkNotifications = () => {
         const notifications = [];
 
-        // 1. Check Low Stock
-        const inventory = JSON.parse(localStorage.getItem('hardware_sync_inventory')) || [];
+        // 1. Check Low Stock — read via DataController if available, otherwise fallback
+        const inventory = (window.DataController && DataController.getInventory)
+            ? DataController.getInventory()
+            : safeParse('hardware_sync_inventory', []);
         inventory.forEach(item => {
             if (item.qty < (item.minStock || 5)) {
                 notifications.push({
@@ -35,7 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 2. Check AMC Expiry (< 7 days)
-        const amcData = JSON.parse(localStorage.getItem('hardware_sync_amc')) || [];
+        const amcData = (window.DataController && DataController.getAmcContracts)
+            ? DataController.getAmcContracts()
+            : safeParse('hardware_sync_amc', []);
         const today = new Date();
         const sevenDaysFromNow = new Date();
         sevenDaysFromNow.setDate(today.getDate() + 7);
@@ -60,7 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 3. Check Stale Repairs (> 3 days)
-        const repairJobs = JSON.parse(localStorage.getItem('tally_repair_jobs')) || [];
+        const repairJobs = (window.DataController && DataController.getRepairJobs)
+            ? DataController.getRepairJobs()
+            : safeParse('tally_repair_jobs', []);
         repairJobs.forEach(job => {
             if (job.status === 'Pending') {
                 // job.createdAt format is "DD/MM/YYYY, HH:MM:SS" or similar, depends on locale

@@ -60,14 +60,19 @@ document.addEventListener('DOMContentLoaded', () => {
         loadState();
     });
 
-    const calculateNextService = (startDate) => {
+    const calculateNextService = (startDate, endDate) => {
         const start = new Date(startDate);
+        const end = endDate ? new Date(endDate) : null;
         const today = new Date();
         
         // Default 90 day frequency
         let nextService = new Date(start);
         while (nextService <= today) {
             nextService.setDate(nextService.getDate() + 90);
+        }
+        
+        if (end && nextService > end) {
+            return null; // Contract ended
         }
         return nextService;
     };
@@ -153,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             list.forEach((amc, index) => {
                 const statusClass = getStatusColor(amc.endDate);
                 const urgency = getUrgencyStyle(amc.endDate);
-                const nextService = calculateNextService(amc.startDate);
+                const nextService = calculateNextService(amc.startDate, amc.endDate);
                 
                 const card = document.createElement('div');
                 card.className = `amc-card ${statusClass} collapsible-card fade-in`;
@@ -197,18 +202,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const billedRev = amc.amount * (elapsedPct / 100);
             const remainRev = amc.amount - billedRev;
 
+            const clvStats = DataController.getCustomerCLV() || [];
+            const isDiamond = clvStats.slice(0, 5).some(c => c.name.toLowerCase() === amc.orgName.toLowerCase() && c.totalValue > 5000);
+            const diamondHtml = isDiamond ? `<i class="fa-solid fa-gem" style="color: #60a5fa; font-size: 0.8rem;" title="Diamond Client"></i>` : '';
+
                 card.innerHTML = `
                     <div class="card-summary" onclick="this.parentElement.classList.toggle('expanded')">
                         <div class="summary-main">
                             <div class="org-name" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                ${escapeXml(amc.orgName)}
+                                ${escapeXml(amc.orgName)} ${diamondHtml}
                                 <span style="font-size: 0.65rem; background: rgba(0,0,0,0.2); color: ${profitScore >= 70 ? '#10b981' : '#f59e0b'}; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid currentColor;">Profit: ${profitScore.toFixed(0)}%</span>
                                 <span style="font-size: 0.65rem; color: ${urgency.labelColor}; padding: 0.1rem 0.3rem; border-radius: 4px; border: 1px solid ${urgency.labelColor}; background: ${urgency.bg}; font-weight: 700;">${urgency.label}</span>
                             </div>
                             <div class="amc-amount font-bold admin-only" style="font-size: 1.1rem; color: #10b981; margin-top: 0.5rem;">
                                 ${window.formatCurrency(amc.amount)}
                             </div>
-                            <div class="due-info">Next Visit: ${new Date(amc.nextServiceDate || nextService).toLocaleDateString()}</div>
+                            <div class="due-info">${nextService ? 'Next Visit: ' + new Date(amc.nextServiceDate || nextService).toLocaleDateString() : 'Term Completed'}</div>
                         </div>
                         <div class="summary-side">
                             <i class="fa-solid fa-chevron-down expand-icon"></i>

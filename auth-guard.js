@@ -8,8 +8,18 @@
     const AUTH_DATA_KEY = 'dotsystem_auth_data';
     const LOCK_PAGE = 'lock.html';
     
-    // Check session
-    const authData = JSON.parse(localStorage.getItem(AUTH_DATA_KEY) || 'null');
+    // Resilient Session Check (prevents JSON.parse crashes from corrupted cache)
+    let authData = null;
+    try {
+        const raw = localStorage.getItem(AUTH_DATA_KEY);
+        if (raw && raw !== 'undefined' && raw !== '[object Object]') {
+            authData = JSON.parse(raw);
+        }
+    } catch(e) {
+        console.warn("Corrupted Auth Token cleared.");
+        localStorage.removeItem(AUTH_DATA_KEY);
+    }
+    
     const isLockPage = window.location.pathname.endsWith(LOCK_PAGE);
 
     // 1. Mandatory Login Check

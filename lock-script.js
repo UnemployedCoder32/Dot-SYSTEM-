@@ -91,7 +91,11 @@ window.clearPin = () => {
 
 function validatePin() {
     if (currentPin === CORRECT_PIN) {
-        const authData = JSON.parse(localStorage.getItem(AUTH_DATA_KEY));
+        let authData = null;
+        try {
+            const raw = localStorage.getItem(AUTH_DATA_KEY);
+            if (raw && raw !== 'undefined') authData = JSON.parse(raw);
+        } catch(e) { console.warn('Corrupt auth during PIN validation'); }
         if (!authData) return;
         
         authData.twoStepVerified = true;

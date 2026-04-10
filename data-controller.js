@@ -40,19 +40,30 @@ window.DataController = (() => {
 
     // Load all data into cache once
     const fallbackInit = () => {
-        _state.inventory = JSON.parse(localStorage.getItem(KEYS.INVENTORY)) || [];
-        _state.suppliers = JSON.parse(localStorage.getItem(KEYS.SUPPLIERS)) || [];
-        _state.repairJobs = JSON.parse(localStorage.getItem(KEYS.REPAIRS)) || [];
-        _state.amcContracts = JSON.parse(localStorage.getItem(KEYS.AMC)) || [];
-        _state.employees = JSON.parse(localStorage.getItem(KEYS.EMPLOYEES)) || [];
-        _state.crmHistory = JSON.parse(localStorage.getItem(KEYS.CRM)) || {};
-        _state.transactions = JSON.parse(localStorage.getItem(KEYS.TRANSACTIONS)) || [];
-        _state.serviceCalls = JSON.parse(localStorage.getItem(KEYS.SERVICECALLS)) || [];
-        _state.nonAmcCalls = JSON.parse(localStorage.getItem(KEYS.NONAMCCALLS)) || [];
-        _state.trash = JSON.parse(localStorage.getItem(KEYS.TRASH)) || [];
-        _state.expenses = JSON.parse(localStorage.getItem(KEYS.EXPENSES)) || [];
-        _state.users = JSON.parse(localStorage.getItem(KEYS.USERS)) || {};
-        _state.pulse = JSON.parse(localStorage.getItem(KEYS.PULSE)) || [];
+        const safeParse = (key, defaultVal) => {
+            try {
+                const item = localStorage.getItem(key);
+                if (item === null || item === 'undefined' || item === 'NaN' || item === '[object Object]') return defaultVal;
+                return JSON.parse(item) || defaultVal;
+            } catch (e) {
+                console.warn(`Corrupted localStorage for ${key}, resetting.`);
+                return defaultVal;
+            }
+        };
+
+        _state.inventory = safeParse(KEYS.INVENTORY, []);
+        _state.suppliers = safeParse(KEYS.SUPPLIERS, []);
+        _state.repairJobs = safeParse(KEYS.REPAIRS, []);
+        _state.amcContracts = safeParse(KEYS.AMC, []);
+        _state.employees = safeParse(KEYS.EMPLOYEES, []);
+        _state.crmHistory = safeParse(KEYS.CRM, {});
+        _state.transactions = safeParse(KEYS.TRANSACTIONS, []);
+        _state.serviceCalls = safeParse(KEYS.SERVICECALLS, []);
+        _state.nonAmcCalls = safeParse(KEYS.NONAMCCALLS, []);
+        _state.trash = safeParse(KEYS.TRASH, []);
+        _state.expenses = safeParse(KEYS.EXPENSES, []);
+        _state.users = safeParse(KEYS.USERS, {});
+        _state.pulse = safeParse(KEYS.PULSE, []);
 
         // Cleanup trash > 30 days
         const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -71,62 +82,91 @@ window.DataController = (() => {
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
     };
 
+    const connectFirebase = () => {
+        if (!window.FirebaseDB || !window.FirebaseDB.database) return;
+        const db = window.FirebaseDB.database;
+        console.log('🔥 DataController: Connecting to Firebase Cloud...');
+
+        db.ref('/').on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+
+            // Normalize arrays to fix Firebase's array-to-object indexing bug
+            // when elements are deleted in the middle.
+            const normalize = (val) => {
+                if (!val) return [];
+                if (Array.isArray(val)) return val;
+                return Object.values(val).filter(Boolean);
+            };
+
+            _state.inventory = normalize(data[KEYS.INVENTORY]);
+            _state.suppliers = normalize(data[KEYS.SUPPLIERS]);
+            _state.repairJobs = normalize(data[KEYS.REPAIRS]);
+            _state.amcContracts = normalize(data[KEYS.AMC]);
+            _state.employees = normalize(data[KEYS.EMPLOYEES]);
+            _state.crmHistory = data[KEYS.CRM] || {};
+            _state.transactions = normalize(data[KEYS.TRANSACTIONS]);
+            _state.serviceCalls = normalize(data[KEYS.SERVICECALLS]);
+            _state.nonAmcCalls = normalize(data[KEYS.NONAMCCALLS]);
+            _state.trash = normalize(data[KEYS.TRASH]);
+            _state.users = data[KEYS.USERS] || {};
+            _state.pulse = normalize(data[KEYS.PULSE]);
+            _state.expenses = normalize(data[KEYS.EXPENSES]);
+
+            // Sync cloud state back to localStorage for offline-first consistency
+            try {
+                Object.entries(KEYS).forEach(([, key]) => {
+                    if (_state[Object.keys(_state).find(k => KEYS[k.toUpperCase()] === key || KEYS[Object.keys(KEYS).find(kk => KEYS[kk] === key)] === key)] !== undefined) return;
+                });
+                if (data[KEYS.INVENTORY]) localStorage.setItem(KEYS.INVENTORY, JSON.stringify(_state.inventory));
+                if (data[KEYS.SUPPLIERS]) localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(_state.suppliers));
+                if (data[KEYS.REPAIRS]) localStorage.setItem(KEYS.REPAIRS, JSON.stringify(_state.repairJobs));
+                if (data[KEYS.AMC]) localStorage.setItem(KEYS.AMC, JSON.stringify(_state.amcContracts));
+                if (data[KEYS.EMPLOYEES]) localStorage.setItem(KEYS.EMPLOYEES, JSON.stringify(_state.employees));
+                if (data[KEYS.TRANSACTIONS]) localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(_state.transactions));
+                if (data[KEYS.SERVICECALLS]) localStorage.setItem(KEYS.SERVICECALLS, JSON.stringify(_state.serviceCalls));
+                if (data[KEYS.NONAMCCALLS]) localStorage.setItem(KEYS.NONAMCCALLS, JSON.stringify(_state.nonAmcCalls));
+                if (data[KEYS.EXPENSES]) localStorage.setItem(KEYS.EXPENSES, JSON.stringify(_state.expenses));
+            } catch(e) { /* localStorage sync is best-effort */ }
+
+            // Cleanup trash > 30 days
+            const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
+            const originalLen = (_state.trash || []).length;
+            _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
+            if ((_state.trash || []).length !== originalLen) {
+                db.ref(KEYS.TRASH).set(_state.trash); // Direct write to avoid loop
+            }
+
+            console.log('☁️ DataController: Snapped to latest Cloud State');
+            window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
+        }, (error) => {
+            console.error('🔥 Firebase Sync Error:', error.code, error.message);
+            if (error.code === 'PERMISSION_DENIED') {
+                console.error('🔒 Firebase rules are blocking access. Check your Realtime Database rules in the Firebase Console.');
+            }
+        });
+    };
+
     const init = () => {
         // ALWAYS load LocalStorage first for instant offline PWA operation.
         // This ensures the screen never stays blank while waiting for Firebase.
         fallbackInit();
 
         if (window.FirebaseDB && window.FirebaseDB.database) {
-            const db = window.FirebaseDB.database;
-            console.log('🔥 DataController: Connecting to Firebase Cloud...');
-
-            db.ref('/').on('value', (snapshot) => {
-                const data = snapshot.val() || {};
-
-                // Normalize arrays to fix Firebase's array-to-object indexing bug 
-                // when elements are deleted in the middle.
-                const normalize = (val) => {
-                    if (!val) return [];
-                    if (Array.isArray(val)) return val;
-                    return Object.values(val).filter(Boolean);
-                };
-
-                _state.inventory = normalize(data[KEYS.INVENTORY]);
-                _state.suppliers = normalize(data[KEYS.SUPPLIERS]);
-                _state.repairJobs = normalize(data[KEYS.REPAIRS]);
-                _state.amcContracts = normalize(data[KEYS.AMC]);
-                _state.employees = normalize(data[KEYS.EMPLOYEES]);
-                _state.crmHistory = data[KEYS.CRM] || {};
-                _state.transactions = normalize(data[KEYS.TRANSACTIONS]);
-                _state.serviceCalls = normalize(data[KEYS.SERVICECALLS]);
-                _state.nonAmcCalls = normalize(data[KEYS.NONAMCCALLS]);
-                _state.trash = normalize(data[KEYS.TRASH]);
-                _state.users = data[KEYS.USERS] || {};
-                _state.pulse = normalize(data[KEYS.PULSE]);
-                _state.expenses = normalize(data[KEYS.EXPENSES]);
-
-                // Cleanup trash > 30 days
-                const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
-                const originalLength = (_state.trash || []).length;
-                _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
-                if ((_state.trash || []).length !== originalLength) {
-                    save(KEYS.TRASH, _state.trash);
-                }
-
-                console.log('☁️ DataController: Snapped to latest Cloud State');
-                // We dispatch dataUpdate. The optimistic PWA state gets seamlessly replaced by Cloud Truth.
-                window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
-            }, (error) => {
-                console.error('🔥 Firebase Sync Error:', error);
-            });
+            // Firebase already initialized — connect immediately
+            connectFirebase();
         } else {
-            console.warn("🔥 Firebase not initialized. Operating in Offline PWA Mode.");
+            // Firebase SDKs may still be loading — wait for the signal
+            window.addEventListener('firebaseConnected', () => {
+                console.log('🔥 firebaseConnected event received — connecting DataController...');
+                connectFirebase();
+            }, { once: true });
+            console.warn('⏳ Firebase not ready yet. Waiting for firebaseConnected event...');
         }
     };
 
     const save = (key, data) => {
-        // 1. Always save to LocalStorage FIRST. 
-        // This ensures zero data loss on page refresh if the device is currently offline.
+        // 1. Always save to LocalStorage FIRST.
+        // Ensures zero data loss on page refresh if the device is currently offline.
         try {
             localStorage.setItem(key, JSON.stringify(data));
         } catch (e) {
@@ -136,14 +176,14 @@ window.DataController = (() => {
         // 2. Dispatch event immediately for 0ms snappy UI update
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
 
-        // 3. Sync to Firebase Queue
+        // 3. Sync to Firebase — write individual key, NOT full root
+        // This avoids triggering the root .on('value') listener's full re-sync on every save.
         if (window.FirebaseDB && window.FirebaseDB.database) {
-            const db = window.FirebaseDB.database;
-            db.ref(key).set(data).then(() => {
-                // Firebase will automatically trigger .on('value') upon successful backend write, 
-                // keeping all clients perfectly synced.
-            }).catch(err => {
-                console.error("☁️ Firebase Write Error:", err);
+            window.FirebaseDB.database.ref(key).set(data).catch(err => {
+                console.error(`☁️ Firebase Write Error [${key}]:`, err.code, err.message);
+                if (err.code === 'PERMISSION_DENIED') {
+                    console.error('🔒 Firebase rules are blocking writes. Open Firebase Console > Realtime Database > Rules and set write: true for development.');
+                }
             });
         }
     };

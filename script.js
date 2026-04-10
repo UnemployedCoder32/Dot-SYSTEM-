@@ -133,7 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const applyRoleRestrictions = () => {
-        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        let authData = {};
+        try {
+            const raw = localStorage.getItem('dotsystem_auth_data');
+            if (raw && raw !== 'undefined' && raw !== '[object Object]') {
+                authData = JSON.parse(raw);
+            }
+        } catch(e) { console.warn("Failed to parse auth_data", e); }
+        
         const role = authData.role || 'staff';
         const name = authData.name || 'User';
 
