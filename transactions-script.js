@@ -35,12 +35,38 @@ document.addEventListener('DOMContentLoaded', () => {
         inventory = DataController.getInventory();
         transactions = DataController.getTransactions();
         renderLedger();
+        applyRoleRestrictions();
     };
 
     // Listen for cloud data updates
     window.addEventListener('dataUpdate', () => {
         loadState();
     });
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-title p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | Role: ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Settings gear
+            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
+            if (settingsBtn) settingsBtn.style.display = 'none';
+
+            // Hide Restricted Nav Links
+            const restrictedLinks = ['employees.html', 'amc-management.html', 'settings.html'];
+            document.querySelectorAll('.nav-btn-alt').forEach(link => {
+                const href = link.getAttribute('href');
+                if (restrictedLinks.includes(href)) link.style.display = 'none';
+            });
+        }
+    };
 
     const renderLedger = () => {
         if (!ledgerList) return;
@@ -98,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td>
                     <div style="display: flex; gap: 0.4rem; justify-content: flex-end;">
-                        <button class="btn-edit" onclick="editTransaction('${tr.id}')" title="Edit Batch"><i class="fa-solid fa-pen-to-square"></i></button>
+                        <button class="btn-edit admin-only" onclick="editTransaction('${tr.id}')" title="Edit Batch"><i class="fa-solid fa-pen-to-square"></i></button>
                         <button class="btn-edit" style="color: #6366f1; border-color: rgba(99,102,241,0.2);" onclick="generateTransactionPDF('${tr.id}')" title="Download Invoice"><i class="fa-solid fa-file-pdf"></i></button>
                     </div>
                 </td>

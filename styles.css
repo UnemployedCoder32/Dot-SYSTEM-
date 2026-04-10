@@ -653,6 +653,23 @@ header {
   color: var(--primary);
 }
 
+/* --- Role Based Restrictions --- */
+body.user-is-staff .admin-only {
+    display: none !important;
+}
+
+body.user-is-staff .nav-gear-btn[href="settings.html"] {
+    display: none !important;
+}
+
+body.user-is-staff .insight-card.admin-insight {
+    display: none !important;
+}
+
+/* --- Generic Styles --- */
+.text-cyan { color: var(--primary); }
+ .text-green { color: #10b981; }
+
 @keyframes flow {
   to {
     stroke-dashoffset: 0;

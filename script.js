@@ -105,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         suppliers = DataController.getSuppliers();
         renderInventory();
         renderSuppliers();
+        applyRoleRestrictions();
         
         // Enable Search on Supplier Hub
         if (window.makeSearchableSelect) {
@@ -137,6 +138,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 case '"': return '&quot;';
             }
         });
+    };
+
+    const applyRoleRestrictions = () => {
+        const authData = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+        const role = authData.role || 'staff';
+        const name = authData.name || 'User';
+
+        // 1. Personalized Greeting
+        const welcomeText = document.querySelector('.header-left p');
+        if (welcomeText) welcomeText.textContent = `Welcome back, ${name} | ${role.toUpperCase()}`;
+
+        if (role === 'staff') {
+            console.log("🔒 Restricted Access: Staff Mode Active");
+            document.body.classList.add('user-is-staff');
+            
+            // Hide Profit & Inventory Value cards
+            const profitCard = document.querySelector('.glow-green:has(#statNetProfit)');
+            const valueCard = document.querySelector('.glow-orange:has(#statTotalValue)');
+            if (profitCard) profitCard.style.display = 'none';
+            if (valueCard) valueCard.style.display = 'none';
+
+            // Hide Settings gear
+            const settingsBtn = document.querySelector('.nav-gear-btn[href="settings.html"]');
+            if (settingsBtn) settingsBtn.style.display = 'none';
+
+            // Hide System Toolbar (Backup/Restore)
+            const systemToolbar = document.querySelector('.toolbar-group:has(#backupBtn)');
+            if (systemToolbar) systemToolbar.style.display = 'none';
+
+            // Remove Toolbar Dividers near hidden items
+            const dividers = document.querySelectorAll('.toolbar-divider');
+            if (dividers.length > 1) dividers[1].style.display = 'none';
+
+            // Hide 'Margins' column in table Header
+            const tableHeaders = document.querySelectorAll('.inventory-table th');
+            tableHeaders.forEach(th => {
+                if (th.textContent.includes('Margin') || th.textContent.includes('Valuation')) {
+                    th.style.display = 'none';
+                }
+            });
+        }
     };
 
     // Helper: Get Last Sold Date for a SKU
@@ -445,8 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${ageHtml}</td>
                     <td><span class="badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2);">${getLastSoldDate(item.sku)}</span></td>
                     <td>${formatCurrency(item.price || 0)}</td>
-                    <td>${formatCurrency(itemValue)}</td>
-                    <td style="color: ${marginColor}; font-weight: 600;" title="${marginTitle}">${marginText}</td>
+                    <td class="admin-only">${formatCurrency(itemValue)}</td>
+                    <td style="color: ${marginColor}; font-weight: 600;" title="${marginTitle}" class="admin-only">${marginText}</td>
                     <td>
                         ${item.qty === 0 ? '<span class="status-critical bg-danger badge">CRITICAL</span>' : 
                           (isLowStock ? '<span class="badge-restock">Restock</span>' : '<span style="color: grey; opacity: 0.5; font-size: 0.8rem;">Stock OK</span>')}

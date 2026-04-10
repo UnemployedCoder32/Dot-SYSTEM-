@@ -166,13 +166,41 @@
     <div class="background-effect effect-2"></div>
 
     <div class="lock-container">
-        <div class="lock-card glass-card" id="lockCard">
+        <!-- Step 1: Identity Selection -->
+        <div class="lock-card glass-card" id="step1Card">
             <div class="lock-icon">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+            <div class="lock-header">
+                <div class="lock-title" id="loginTitle">System Access</div>
+                <div class="lock-subtitle" id="loginSubtitle">Select your name to continue</div>
+            </div>
+
+            <!-- Identity Grid -->
+            <div id="identityGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; width: 100%; margin-top: 1rem;">
+                <button class="key" onclick="selectUser('Sudipto')" style="aspect-ratio: auto; padding: 1rem; font-size: 1rem;">Sudipto</button>
+                <button class="key" onclick="selectUser('Pankaj')" style="aspect-ratio: auto; padding: 1rem; font-size: 1rem;">Pankaj</button>
+                <button class="key" onclick="selectUser('Shashikant')" style="aspect-ratio: auto; padding: 1rem; font-size: 1rem; border-color: var(--accent);">Shashikant</button>
+                <button class="key" onclick="selectUser('Prajakta')" style="aspect-ratio: auto; padding: 1rem; font-size: 1rem; border-color: var(--accent);">Prajakta</button>
+            </div>
+
+            <!-- Password Field (hidden until name selected) -->
+            <div id="passwordSection" style="display: none; width: 100%; margin-top: 2rem;">
+                <div class="lock-subtitle" id="passLabel">Enter password for Sudipto</div>
+                <input type="password" id="userPass" class="glass-card" style="width: 100%; padding: 1rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: white; border-radius: 12px; text-align: center; font-size: 1.2rem; margin-bottom: 1rem;" placeholder="••••••••">
+                <button class="btn btn-primary w-full" onclick="handleLogin()" style="height: 50px;">Confirm & Login</button>
+                <button class="btn-toolbar w-full" onclick="resetLogin()" style="margin-top: 0.5rem; opacity: 0.6;">Back to selection</button>
+            </div>
+        </div>
+
+        <!-- Step 2: 2FA PIN (Hidden) -->
+        <div class="lock-card glass-card" id="step2Card" style="display: none;">
+            <div class="lock-icon" style="color: var(--accent);">
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
             <div class="lock-header">
-                <div class="lock-title">Sign in as Administrator</div>
-                <div class="lock-subtitle">Enter secure access code to continue</div>
+                <div class="lock-title">Step 2: Admin PIN</div>
+                <div class="lock-subtitle">Enter secure 4-digit verification code</div>
             </div>
 
             <div class="pin-dots">
@@ -196,10 +224,7 @@
                 <div class="key" onclick="appendPin('0')">0</div>
                 <div class="special key" onclick="deletePin()"><i class="fa-solid fa-delete-left"></i></div>
             </div>
-
-            <a href="https://wa.me/919307187321?text=Hi%2C%20I%20forgot%20my%20DOT%20System%20password.%20Help%20me%20recover%20it." target="_blank" class="forgot-password">
-                <i class="fa-solid fa-circle-question"></i> Forgot password? Contact System Admin
-            </a>
+            <button class="btn-toolbar w-full" onclick="window.logoutSystem()" style="margin-top: 1.5rem; opacity: 0.6;">Cancel Verification</button>
         </div>
     </div>
 

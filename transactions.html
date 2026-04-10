@@ -61,8 +61,8 @@
 
             <div class="header-system">
                 <div class="stats-mini" style="display: flex; gap: 1rem; align-items: center;">
-                    <div id="profitSparkline" style="width: 100px; height: 30px; display: inline-block;"></div>
-                    <div class="stat-pill glass-card">
+                    <div id="profitSparkline" style="width: 100px; height: 30px; display: inline-block;" class="admin-insight"></div>
+                    <div class="stat-pill glass-card admin-insight">
                         <span class="label">Net Sales Profit:</span>
                         <span id="statSalesProfit" class="value" style="color: #10b981;">₹0.00</span>
                     </div>
@@ -99,7 +99,7 @@
                             <p style="font-size: 0.85rem; color: var(--text-muted);">Real-time log of Sales & Purchases</p>
                         </div>
                         <div style="display: flex; gap: 1rem; align-items: center;">
-                            <button id="bulkDeleteBtn" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444; display: none;" onclick="deleteSelectedTransactions()">
+                            <button id="bulkDeleteBtn" class="btn btn-outline admin-only" style="border-color: #ef4444; color: #ef4444; display: none;" onclick="deleteSelectedTransactions()">
                                 <i class="fa-solid fa-trash"></i> Delete Selected (<span id="selectedCount">0</span>)
                             </button>
                             <button class="btn btn-primary" onclick="openTransactionModal()">
@@ -129,7 +129,7 @@
                     </div>
                 </div>
                 
-                <div id="monthlyPnLSummary" class="glass-card" style="margin-bottom: 1.5rem; display: flex; justify-content: space-around; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2); padding: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div id="monthlyPnLSummary" class="glass-card admin-insight" style="margin-bottom: 1.5rem; display: flex; justify-content: space-around; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.2); padding: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                     <div style="text-align: center;">
                         <span style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase;">This Month Purchases</span>
                         <span id="monthlyPurchases" style="font-size: 1.2rem; font-weight: 800; color: #ef4444;">₹0.00</span>
@@ -170,7 +170,7 @@
                     </table>
                 </div>
 
-                <div class="transaction-summary-bar glass-card" style="margin-top: 1rem; padding: 1.5rem; display: flex; justify-content: space-around; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); flex-wrap: wrap; gap: 1rem;">
+                <div class="transaction-summary-bar glass-card admin-insight" style="margin-top: 1rem; padding: 1.5rem; display: flex; justify-content: space-around; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); flex-wrap: wrap; gap: 1rem;">
                     <div class="summary-item" style="text-align: center;">
                         <span class="label" style="font-size: 0.75rem; color: var(--text-muted); display: block; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.5rem;">Purchase Total</span>
                         <span id="sumTotalPurchase" class="value" style="font-size: 1.2rem; font-weight: 800;">₹0.00</span>

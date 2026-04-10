@@ -14,7 +14,8 @@ window.DataController = (() => {
         transactions: [],
         serviceCalls: [],
         nonAmcCalls: [],
-        trash: []
+        trash: [],
+        users: {}
     };
 
     // localStorage keys
@@ -29,8 +30,8 @@ window.DataController = (() => {
         SERVICECALLS: 'tally_service_calls',
         NONAMCCALLS: 'tally_non_amc_calls',
         TRASH: 'tally_trash',
-        DM_COUNTER: 'tally_dm_counter',
-        INV_COUNTER: 'tally_inv_counter'
+        INV_COUNTER: 'tally_inv_counter',
+        USERS: 'dotsystem_users'
     };
 
     // Load all data into cache once
@@ -81,6 +82,7 @@ window.DataController = (() => {
                 _state.serviceCalls = data[KEYS.SERVICECALLS] || [];
                 _state.nonAmcCalls = data[KEYS.NONAMCCALLS] || [];
                 _state.trash = data[KEYS.TRASH] || [];
+                _state.users = data[KEYS.USERS] || {};
 
                 // Cleanup trash > 30 days
                 const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -470,8 +472,25 @@ window.DataController = (() => {
         }
     };
 
+    const seedUsers = () => {
+        if (!_state.users || Object.keys(_state.users).length === 0) {
+            const initialUsers = {
+                "Sudipto": { role: "staff", name: "Sudipto" },
+                "Pankaj": { role: "staff", name: "Pankaj" },
+                "Shashikant": { role: "admin", name: "Shashikant" },
+                "Prajakta": { role: "admin", name: "Prajakta" }
+            };
+            if (window.FirebaseDB && window.FirebaseDB.database) {
+                window.FirebaseDB.database.ref(KEYS.USERS).set(initialUsers);
+            }
+        }
+    };
+
     // Run init on Script Load
     init();
+    
+    // Seed users if empty (delayed to ensure firebase init)
+    setTimeout(seedUsers, 2000);
 
     return {
         getInventory, saveInventory, getInventoryValue,
@@ -488,6 +507,11 @@ window.DataController = (() => {
         getTrash, moveToTrash, restoreFromTrash,
         exportFullBackup,
         importFullBackup,
+        getUsers, verifyUser,
+        isAdmin: () => {
+             const auth = JSON.parse(localStorage.getItem('dotsystem_auth_data') || '{}');
+             return auth.role === 'admin' && auth.twoStepVerified === true;
+        },
         KEYS
         // this is an extensive Keys contract this should be confidential // 
     };
