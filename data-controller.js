@@ -82,147 +82,89 @@ window.DataController = (() => {
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
     };
 
-    const connectFirebase = () => {
-        if (!window.FirebaseDB || !window.FirebaseDB.database) return;
-        const db = window.FirebaseDB.database;
-        console.log('🔥 Sync Engine: Establishing Cloud Link...');
+    // ── Local Persistence Engine (Safe-Sync) ───────────────────
+    const API_URL = 'http://localhost:3000/api/db';
+    let _syncTimeout = null;
 
-        const normalize = (val) => {
-            if (val === null || val === undefined) return null;
-            if (Array.isArray(val)) return val;
-            return Object.values(val).filter(Boolean);
-        };
+    const syncWithLocalServer = async () => {
+        console.log('📡 Sync Engine: Connecting to Local Persistence Server...');
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error('Server unreachable');
+            const cloudData = await response.json();
 
-        // ── Phase 1: Aggressive Cloud Seeding ───────────────────────────
-        db.ref('/').once('value').then(snap => {
-            const cloudData = snap.val();
-            const cloudIsEmpty = !cloudData || Object.keys(cloudData).length === 0;
-
-            if (cloudIsEmpty) {
-                console.warn('☁️ Sync Engine: Cloud is blank. Uploading local backup...');
-                const seed = {};
-                if (_state.inventory.length)    seed[KEYS.INVENTORY]   = _state.inventory;
-                if (_state.suppliers.length)    seed[KEYS.SUPPLIERS]   = _state.suppliers;
-                if (_state.repairJobs.length)   seed[KEYS.REPAIRS]     = _state.repairJobs;
-                if (_state.amcContracts.length) seed[KEYS.AMC]         = _state.amcContracts;
-                if (_state.employees.length)    seed[KEYS.EMPLOYEES]   = _state.employees;
-                if (_state.transactions.length) seed[KEYS.TRANSACTIONS]= _state.transactions;
-                if (_state.serviceCalls.length) seed[KEYS.SERVICECALLS]= _state.serviceCalls;
-                if (_state.nonAmcCalls.length)  seed[KEYS.NONAMCCALLS] = _state.nonAmcCalls;
-                if (_state.expenses.length)     seed[KEYS.EXPENSES]    = _state.expenses;
-                if (Object.keys(_state.crmHistory).length) seed[KEYS.CRM] = _state.crmHistory;
-                if (Object.keys(_state.users).length)      seed[KEYS.USERS] = _state.users;
-
-                if (Object.keys(seed).length > 0) {
-                    db.ref('/').update(seed)
-                        .then(() => console.log('✅ Sync Engine: Local backup uploaded.'))
-                        .catch(err => console.error('❌ Sync Engine: Upload failed:', err.message));
-                }
+            if (!cloudData || Object.keys(cloudData).length === 0) {
+                console.warn('📂 Local Database is blank. Initializing with current cache...');
+                queueServerSync(0); // Immediate upload
+                return;
             }
-        });
 
-        // ── STEP 2: Subscribe to real-time updates ───────────────────────
-        db.ref('/').on('value', (snapshot) => {
-            const data = snapshot.val() || {};
-
-            // NON-DESTRUCTIVE MERGE:
-            // Cloud wins ONLY if it actually has data for that key.
-            // If Firebase returns null/empty, keep the existing _state (from localStorage).
-            // This prevents a blank/new Firebase DB from wiping all local data.
-            const merge = (cloudVal, currentLocal) => {
-                const normalized = normalize(cloudVal);
-                return normalized !== null ? normalized : currentLocal;
+            // Non-destructive merge: Use server data if it exists, otherwise keep local cache
+            const merge = (key, defaultVal) => {
+                const val = cloudData[key];
+                return (val !== undefined && val !== null) ? val : defaultVal;
             };
 
-            _state.inventory    = merge(data[KEYS.INVENTORY],    _state.inventory);
-            _state.suppliers    = merge(data[KEYS.SUPPLIERS],    _state.suppliers);
-            _state.repairJobs   = merge(data[KEYS.REPAIRS],      _state.repairJobs);
-            _state.amcContracts = merge(data[KEYS.AMC],          _state.amcContracts);
-            _state.employees    = merge(data[KEYS.EMPLOYEES],    _state.employees);
-            _state.transactions = merge(data[KEYS.TRANSACTIONS], _state.transactions);
-            _state.serviceCalls = merge(data[KEYS.SERVICECALLS], _state.serviceCalls);
-            _state.nonAmcCalls  = merge(data[KEYS.NONAMCCALLS],  _state.nonAmcCalls);
-            _state.trash        = merge(data[KEYS.TRASH],        _state.trash);
-            _state.pulse        = merge(data[KEYS.PULSE],        _state.pulse);
-            _state.expenses     = merge(data[KEYS.EXPENSES],     _state.expenses);
-            if (data[KEYS.CRM]   && Object.keys(data[KEYS.CRM]).length)   _state.crmHistory = data[KEYS.CRM];
-            if (data[KEYS.USERS] && Object.keys(data[KEYS.USERS]).length) _state.users      = data[KEYS.USERS];
+            _state.inventory    = merge(KEYS.INVENTORY,    _state.inventory);
+            _state.suppliers    = merge(KEYS.SUPPLIERS,    _state.suppliers);
+            _state.repairJobs   = merge(KEYS.REPAIRS,      _state.repairJobs);
+            _state.amcContracts = merge(KEYS.AMC,          _state.amcContracts);
+            _state.employees    = merge(KEYS.EMPLOYEES,    _state.employees);
+            _state.transactions = merge(KEYS.TRANSACTIONS, _state.transactions);
+            _state.serviceCalls = merge(KEYS.SERVICECALLS, _state.serviceCalls);
+            _state.nonAmcCalls  = merge(KEYS.NONAMCCALLS,  _state.nonAmcCalls);
+            _state.expenses     = merge(KEYS.EXPENSES,     _state.expenses);
+            _state.trash        = merge(KEYS.TRASH,        _state.trash);
+            _state.pulse        = merge(KEYS.PULSE,        _state.pulse);
+            _state.users        = merge(KEYS.USERS,        _state.users);
+            _state.crmHistory   = merge(KEYS.CRM,          _state.crmHistory);
 
-            // Mirror winning state back to localStorage for perfect offline cache
-            try {
-                localStorage.setItem(KEYS.INVENTORY,    JSON.stringify(_state.inventory));
-                localStorage.setItem(KEYS.SUPPLIERS,    JSON.stringify(_state.suppliers));
-                localStorage.setItem(KEYS.REPAIRS,      JSON.stringify(_state.repairJobs));
-                localStorage.setItem(KEYS.AMC,          JSON.stringify(_state.amcContracts));
-                localStorage.setItem(KEYS.EMPLOYEES,    JSON.stringify(_state.employees));
-                localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(_state.transactions));
-                localStorage.setItem(KEYS.SERVICECALLS, JSON.stringify(_state.serviceCalls));
-                localStorage.setItem(KEYS.NONAMCCALLS,  JSON.stringify(_state.nonAmcCalls));
-                localStorage.setItem(KEYS.EXPENSES,     JSON.stringify(_state.expenses));
-                localStorage.setItem(KEYS.TRASH,        JSON.stringify(_state.trash));
-                localStorage.setItem(KEYS.PULSE,        JSON.stringify(_state.pulse));
-                localStorage.setItem(KEYS.CRM,          JSON.stringify(_state.crmHistory));
-                localStorage.setItem(KEYS.USERS,        JSON.stringify(_state.users));
-            } catch(e) { /* best-effort */ }
-
-            // Cleanup trash > 30 days
-            const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
-            const prevLen = (_state.trash || []).length;
-            _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
-            if ((_state.trash || []).length !== prevLen) {
-                db.ref(KEYS.TRASH).set(_state.trash);
-            }
-
-            console.log('☁️ DataController: Cloud sync complete (non-destructive).');
+            console.log('✅ Sync Engine: DB Parity achieved.');
             window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
-        }, (error) => {
-            console.error('🔥 Firebase Sync Error:', error.code, error.message);
-            if (error.code === 'PERMISSION_DENIED') {
-                console.error('🔒 Firebase rules blocking access. Check Firebase Console → Realtime Database → Rules.');
-            }
-        });
-    };
-
-    const init = () => {
-        // ALWAYS load LocalStorage first for instant offline PWA operation.
-        // This ensures the screen never stays blank while waiting for Firebase.
-        fallbackInit();
-
-        if (window.FirebaseDB && window.FirebaseDB.database) {
-            // Firebase already initialized — connect immediately
-            connectFirebase();
-        } else {
-            // Firebase SDKs may still be loading — wait for the signal
-            window.addEventListener('firebaseConnected', () => {
-                console.log('🔥 firebaseConnected event received — connecting DataController...');
-                connectFirebase();
-            }, { once: true });
-            console.warn('⏳ Firebase not ready yet. Waiting for firebaseConnected event...');
+        } catch (err) {
+            console.error('❌ Sync Engine Error:', err.message);
+            console.warn('⚠️ Running in Offline Mode (LocalStorage only). Start server.js to enable persistence.');
         }
     };
 
+    const queueServerSync = (delay = 5000) => {
+        if (_syncTimeout) clearTimeout(_syncTimeout);
+        _syncTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_state)
+                });
+                if (response.ok) {
+                    console.log('💾 Sync Engine: Data successfully persisted to physical storage.');
+                }
+            } catch (err) {
+                console.error('❌ Sync Engine: Failed to persist to disk:', err.message);
+            }
+        }, delay);
+    };
+
+
+    const init = () => {
+        // Load Local PWA cache first for instant startup
+        fallbackInit();
+        // Then reconcile with Local Server for physical storage permanence
+        syncWithLocalServer();
+    };
+
     const save = (key, data) => {
-        // 1. Always save to LocalStorage FIRST.
-        // Ensures zero data loss on page refresh if the device is currently offline.
+        // 1. Instant UI update via LocalStorage
         try {
             localStorage.setItem(key, JSON.stringify(data));
         } catch (e) {
             console.error('LocalStorage persistence failed:', e);
         }
 
-        // 2. Dispatch event immediately for 0ms snappy UI update
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
 
-        // 3. Sync to Firebase — write individual key, NOT full root
-        // This avoids triggering the root .on('value') listener's full re-sync on every save.
-        if (window.FirebaseDB && window.FirebaseDB.database) {
-            window.FirebaseDB.database.ref(key).set(data).catch(err => {
-                console.error(`☁️ Firebase Write Error [${key}]:`, err.code, err.message);
-                if (err.code === 'PERMISSION_DENIED') {
-                    console.error('🔒 Firebase rules are blocking writes. Open Firebase Console > Realtime Database > Rules and set write: true for development.');
-                }
-            });
-        }
+        // 2. Debounced File Storage (saves every 5 seconds)
+        queueServerSync();
     };
 
     // --- Inventory ---
