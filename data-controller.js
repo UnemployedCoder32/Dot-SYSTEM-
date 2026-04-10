@@ -85,63 +85,100 @@ window.DataController = (() => {
     const connectFirebase = () => {
         if (!window.FirebaseDB || !window.FirebaseDB.database) return;
         const db = window.FirebaseDB.database;
-        console.log('🔥 DataController: Connecting to Firebase Cloud...');
+        console.log('🔥 Sync Engine: Establishing Cloud Link...');
 
+        const normalize = (val) => {
+            if (val === null || val === undefined) return null;
+            if (Array.isArray(val)) return val;
+            return Object.values(val).filter(Boolean);
+        };
+
+        // ── Phase 1: Aggressive Cloud Seeding ───────────────────────────
+        db.ref('/').once('value').then(snap => {
+            const cloudData = snap.val();
+            const cloudIsEmpty = !cloudData || Object.keys(cloudData).length === 0;
+
+            if (cloudIsEmpty) {
+                console.warn('☁️ Sync Engine: Cloud is blank. Uploading local backup...');
+                const seed = {};
+                if (_state.inventory.length)    seed[KEYS.INVENTORY]   = _state.inventory;
+                if (_state.suppliers.length)    seed[KEYS.SUPPLIERS]   = _state.suppliers;
+                if (_state.repairJobs.length)   seed[KEYS.REPAIRS]     = _state.repairJobs;
+                if (_state.amcContracts.length) seed[KEYS.AMC]         = _state.amcContracts;
+                if (_state.employees.length)    seed[KEYS.EMPLOYEES]   = _state.employees;
+                if (_state.transactions.length) seed[KEYS.TRANSACTIONS]= _state.transactions;
+                if (_state.serviceCalls.length) seed[KEYS.SERVICECALLS]= _state.serviceCalls;
+                if (_state.nonAmcCalls.length)  seed[KEYS.NONAMCCALLS] = _state.nonAmcCalls;
+                if (_state.expenses.length)     seed[KEYS.EXPENSES]    = _state.expenses;
+                if (Object.keys(_state.crmHistory).length) seed[KEYS.CRM] = _state.crmHistory;
+                if (Object.keys(_state.users).length)      seed[KEYS.USERS] = _state.users;
+
+                if (Object.keys(seed).length > 0) {
+                    db.ref('/').update(seed)
+                        .then(() => console.log('✅ Sync Engine: Local backup uploaded.'))
+                        .catch(err => console.error('❌ Sync Engine: Upload failed:', err.message));
+                }
+            }
+        });
+
+        // ── STEP 2: Subscribe to real-time updates ───────────────────────
         db.ref('/').on('value', (snapshot) => {
             const data = snapshot.val() || {};
 
-            // Normalize arrays to fix Firebase's array-to-object indexing bug
-            // when elements are deleted in the middle.
-            const normalize = (val) => {
-                if (!val) return [];
-                if (Array.isArray(val)) return val;
-                return Object.values(val).filter(Boolean);
+            // NON-DESTRUCTIVE MERGE:
+            // Cloud wins ONLY if it actually has data for that key.
+            // If Firebase returns null/empty, keep the existing _state (from localStorage).
+            // This prevents a blank/new Firebase DB from wiping all local data.
+            const merge = (cloudVal, currentLocal) => {
+                const normalized = normalize(cloudVal);
+                return normalized !== null ? normalized : currentLocal;
             };
 
-            _state.inventory = normalize(data[KEYS.INVENTORY]);
-            _state.suppliers = normalize(data[KEYS.SUPPLIERS]);
-            _state.repairJobs = normalize(data[KEYS.REPAIRS]);
-            _state.amcContracts = normalize(data[KEYS.AMC]);
-            _state.employees = normalize(data[KEYS.EMPLOYEES]);
-            _state.crmHistory = data[KEYS.CRM] || {};
-            _state.transactions = normalize(data[KEYS.TRANSACTIONS]);
-            _state.serviceCalls = normalize(data[KEYS.SERVICECALLS]);
-            _state.nonAmcCalls = normalize(data[KEYS.NONAMCCALLS]);
-            _state.trash = normalize(data[KEYS.TRASH]);
-            _state.users = data[KEYS.USERS] || {};
-            _state.pulse = normalize(data[KEYS.PULSE]);
-            _state.expenses = normalize(data[KEYS.EXPENSES]);
+            _state.inventory    = merge(data[KEYS.INVENTORY],    _state.inventory);
+            _state.suppliers    = merge(data[KEYS.SUPPLIERS],    _state.suppliers);
+            _state.repairJobs   = merge(data[KEYS.REPAIRS],      _state.repairJobs);
+            _state.amcContracts = merge(data[KEYS.AMC],          _state.amcContracts);
+            _state.employees    = merge(data[KEYS.EMPLOYEES],    _state.employees);
+            _state.transactions = merge(data[KEYS.TRANSACTIONS], _state.transactions);
+            _state.serviceCalls = merge(data[KEYS.SERVICECALLS], _state.serviceCalls);
+            _state.nonAmcCalls  = merge(data[KEYS.NONAMCCALLS],  _state.nonAmcCalls);
+            _state.trash        = merge(data[KEYS.TRASH],        _state.trash);
+            _state.pulse        = merge(data[KEYS.PULSE],        _state.pulse);
+            _state.expenses     = merge(data[KEYS.EXPENSES],     _state.expenses);
+            if (data[KEYS.CRM]   && Object.keys(data[KEYS.CRM]).length)   _state.crmHistory = data[KEYS.CRM];
+            if (data[KEYS.USERS] && Object.keys(data[KEYS.USERS]).length) _state.users      = data[KEYS.USERS];
 
-            // Sync cloud state back to localStorage for offline-first consistency
+            // Mirror winning state back to localStorage for perfect offline cache
             try {
-                Object.entries(KEYS).forEach(([, key]) => {
-                    if (_state[Object.keys(_state).find(k => KEYS[k.toUpperCase()] === key || KEYS[Object.keys(KEYS).find(kk => KEYS[kk] === key)] === key)] !== undefined) return;
-                });
-                if (data[KEYS.INVENTORY]) localStorage.setItem(KEYS.INVENTORY, JSON.stringify(_state.inventory));
-                if (data[KEYS.SUPPLIERS]) localStorage.setItem(KEYS.SUPPLIERS, JSON.stringify(_state.suppliers));
-                if (data[KEYS.REPAIRS]) localStorage.setItem(KEYS.REPAIRS, JSON.stringify(_state.repairJobs));
-                if (data[KEYS.AMC]) localStorage.setItem(KEYS.AMC, JSON.stringify(_state.amcContracts));
-                if (data[KEYS.EMPLOYEES]) localStorage.setItem(KEYS.EMPLOYEES, JSON.stringify(_state.employees));
-                if (data[KEYS.TRANSACTIONS]) localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(_state.transactions));
-                if (data[KEYS.SERVICECALLS]) localStorage.setItem(KEYS.SERVICECALLS, JSON.stringify(_state.serviceCalls));
-                if (data[KEYS.NONAMCCALLS]) localStorage.setItem(KEYS.NONAMCCALLS, JSON.stringify(_state.nonAmcCalls));
-                if (data[KEYS.EXPENSES]) localStorage.setItem(KEYS.EXPENSES, JSON.stringify(_state.expenses));
-            } catch(e) { /* localStorage sync is best-effort */ }
+                localStorage.setItem(KEYS.INVENTORY,    JSON.stringify(_state.inventory));
+                localStorage.setItem(KEYS.SUPPLIERS,    JSON.stringify(_state.suppliers));
+                localStorage.setItem(KEYS.REPAIRS,      JSON.stringify(_state.repairJobs));
+                localStorage.setItem(KEYS.AMC,          JSON.stringify(_state.amcContracts));
+                localStorage.setItem(KEYS.EMPLOYEES,    JSON.stringify(_state.employees));
+                localStorage.setItem(KEYS.TRANSACTIONS, JSON.stringify(_state.transactions));
+                localStorage.setItem(KEYS.SERVICECALLS, JSON.stringify(_state.serviceCalls));
+                localStorage.setItem(KEYS.NONAMCCALLS,  JSON.stringify(_state.nonAmcCalls));
+                localStorage.setItem(KEYS.EXPENSES,     JSON.stringify(_state.expenses));
+                localStorage.setItem(KEYS.TRASH,        JSON.stringify(_state.trash));
+                localStorage.setItem(KEYS.PULSE,        JSON.stringify(_state.pulse));
+                localStorage.setItem(KEYS.CRM,          JSON.stringify(_state.crmHistory));
+                localStorage.setItem(KEYS.USERS,        JSON.stringify(_state.users));
+            } catch(e) { /* best-effort */ }
 
             // Cleanup trash > 30 days
             const limitDate = Date.now() - (30 * 24 * 60 * 60 * 1000);
-            const originalLen = (_state.trash || []).length;
+            const prevLen = (_state.trash || []).length;
             _state.trash = (_state.trash || []).filter(item => item && item.deletedAt > limitDate);
-            if ((_state.trash || []).length !== originalLen) {
-                db.ref(KEYS.TRASH).set(_state.trash); // Direct write to avoid loop
+            if ((_state.trash || []).length !== prevLen) {
+                db.ref(KEYS.TRASH).set(_state.trash);
             }
 
-            console.log('☁️ DataController: Snapped to latest Cloud State');
+            console.log('☁️ DataController: Cloud sync complete (non-destructive).');
             window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
         }, (error) => {
             console.error('🔥 Firebase Sync Error:', error.code, error.message);
             if (error.code === 'PERMISSION_DENIED') {
-                console.error('🔒 Firebase rules are blocking access. Check your Realtime Database rules in the Firebase Console.');
+                console.error('🔒 Firebase rules blocking access. Check Firebase Console → Realtime Database → Rules.');
             }
         });
     };
