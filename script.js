@@ -103,9 +103,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadState = () => {
         inventory = DataController.getInventory();
         suppliers = DataController.getSuppliers();
-        renderInventory();
-        renderSuppliers();
-        applyRoleRestrictions();
+        
+        console.log(`📊 script.js: Loading state... (${inventory.length} items found)`);
+        
+        // Comprehensive UI Render
+        if (typeof renderInventory === 'function') renderInventory();
+        if (typeof renderSuppliers === 'function') renderSuppliers();
+        if (typeof populateSupplierList === 'function') populateSupplierList();
+        if (typeof updateDashboardStats === 'function') updateDashboardStats(); // Ensure KPIs update
+        
+        if (typeof applyRoleRestrictions === 'function') applyRoleRestrictions();
         
         // Enable Search on Supplier Hub
         if (window.makeSearchableSelect) {
@@ -113,8 +120,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Listen for cloud data updates
-    window.addEventListener('dataUpdate', () => {
+    // Listen for data updates (Local File Sync or Other Modules)
+    window.addEventListener('dataUpdate', (e) => {
+        const source = e.detail?.source || 'unknown';
+        console.log(`🔄 script.js: Data Update Pulse detected (Source: ${source})`);
+        
+        // Always load if it's a global sync or if source is specified
+        if (!e.detail || e.detail.key === 'ALL' || e.detail.key === 'hardware_sync_inventory') {
+            loadState();
+        }
+    });
+
+    // Special listener for initial sync completion
+    window.addEventListener('syncComplete', () => {
+        console.log('🚀 script.js: Initial File Sync Complete - Final Render');
         loadState();
     });
 
@@ -202,84 +221,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add Item
     if (inventoryForm) {
-        inventoryForm.addEventListener('submit', (e) => {
+        inventoryForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('📝 script.js: Intercepted Inventory Form Submission');
 
-            const skuInput = document.getElementById('partSku');
-            const skuValue = (skuInput.value || '').trim().toUpperCase();
-            const skuError = document.getElementById('sku-error');
+            try {
+                const skuInput = document.getElementById('partSku');
+                const skuValue = (skuInput.value || '').trim().toUpperCase();
+                const skuError = document.getElementById('sku-error');
 
-            // SKU Duplicate Validation
-            const isDuplicate = inventory.some(item => item.sku === skuValue && item.id !== editingId);
-            if (isDuplicate && skuValue !== "") {
-                if (skuError) skuError.style.display = 'block';
-                skuInput.focus();
-                return;
-            } else {
-                if (skuError) skuError.style.display = 'none';
-            }
-
-            const nameInput = document.getElementById('partName');
-            const qtyInput = document.getElementById('quantity');
-            const buyPriceInput = document.getElementById('buyPrice');
-            const priceInput = document.getElementById('price');
-            const minStockInput = document.getElementById('minStock');
-            const supplierSelect = document.getElementById('partSupplier');
-
-            const itemData = {
-                sku: (document.getElementById('partSku').value || '').trim().toUpperCase(),
-                name: (nameInput.value || 'Unnamed Product').trim(),
-                qty: Math.max(0, parseFloat(qtyInput.value) || 0),
-                minStock: Math.max(0, parseFloat(minStockInput.value) || 0),
-                buyPrice: Math.max(0, parseFloat(buyPriceInput.dataset.rawValue || buyPriceInput.value) || 0),
-                price: Math.max(0, parseFloat(priceInput.dataset.rawValue || priceInput.value) || 0),
-                gstRate: parseFloat(document.getElementById('gstRate')?.value || 18),
-                supplier: supplierSelect ? supplierSelect.value : ''
-            };
-
-            if (editingId) {
-                // Update mode
-                const index = inventory.findIndex(item => item.id === editingId);
-                if (index !== -1) {
-                    inventory[index] = { ...inventory[index], ...itemData };
-                }
-                editingId = null;
-                submitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add to Inventory';
-                addItemSection.classList.remove('editing-mode');
-            } else {
-                // Add mode with Deduplication (Check SKU first, then Name)
-                const existingIndex = inventory.findIndex(i => {
-                    if (itemData.sku && i.sku === itemData.sku) return true;
-                    return i.name.toLowerCase() === itemData.name.toLowerCase();
-                });
-                if (existingIndex !== -1) {
-                    // Merge quantities
-                    inventory[existingIndex].qty += itemData.qty;
-                    // Update prices if they are different (Keep latest)
-                    inventory[existingIndex].price = itemData.price;
-                    inventory[existingIndex].buyPrice = itemData.buyPrice;
-                    inventory[existingIndex].minStock = itemData.minStock;
-                    inventory[existingIndex].supplier = itemData.supplier;
+                // SKU Duplicate Validation
+                const isDuplicate = inventory.some(item => item.sku === skuValue && item.id !== editingId);
+                if (isDuplicate && skuValue !== "") {
+                    if (skuError) skuError.style.display = 'block';
+                    skuInput.focus();
+                    return;
                 } else {
-                    const item = {
-                        id: Date.now().toString(),
-                        addedAt: Date.now(),
-                        ...itemData
-                    };
-                    inventory.push(item);
+                    if (skuError) skuError.style.display = 'none';
                 }
-            }
-            
-            saveState();
-            
-            // Reset form
-            inventoryForm.reset();
-            const infoBox = document.getElementById('supplier-info-box');
-            if (infoBox) infoBox.style.display = 'none';
-            nameInput.focus();
 
-            renderInventory();
-            showToast(editingId ? 'Product info updated!' : 'New product added to inventory!');
+                const nameInput = document.getElementById('partName');
+                const qtyInput = document.getElementById('quantity');
+                const buyPriceInput = document.getElementById('buyPrice');
+                const priceInput = document.getElementById('price');
+                const minStockInput = document.getElementById('minStock');
+                const supplierSelect = document.getElementById('partSupplier');
+
+                const itemData = {
+                    sku: skuValue,
+                    name: (nameInput.value || 'Unnamed Product').trim(),
+                    qty: Math.max(0, parseFloat(qtyInput.value) || 0),
+                    minStock: Math.max(0, parseFloat(minStockInput.value) || 0),
+                    buyPrice: Math.max(0, parseFloat(buyPriceInput.dataset.rawValue || buyPriceInput.value) || 0),
+                    price: Math.max(0, parseFloat(priceInput.dataset.rawValue || priceInput.value) || 0),
+                    gstRate: parseFloat(document.getElementById('gstRate')?.value || 18),
+                    supplier: supplierSelect ? supplierSelect.value : ''
+                };
+
+                if (editingId) {
+                    const index = inventory.findIndex(item => item.id === editingId);
+                    if (index !== -1) {
+                        inventory[index] = { ...inventory[index], ...itemData };
+                    }
+                    editingId = null;
+                    if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add to Inventory';
+                    const addItemSection = document.querySelector('.add-item-section');
+                    if (addItemSection) addItemSection.classList.remove('editing-mode');
+                } else {
+                    const existingIndex = inventory.findIndex(i => {
+                        if (itemData.sku && i.sku === itemData.sku) return true;
+                        return i.name.toLowerCase() === itemData.name.toLowerCase();
+                    });
+                    
+                    if (existingIndex !== -1) {
+                        inventory[existingIndex].qty += itemData.qty;
+                        inventory[existingIndex].price = itemData.price;
+                        inventory[existingIndex].buyPrice = itemData.buyPrice;
+                        inventory[existingIndex].minStock = itemData.minStock;
+                        inventory[existingIndex].supplier = itemData.supplier;
+                    } else {
+                        inventory.push({
+                            id: Date.now().toString(),
+                            addedAt: Date.now(),
+                            ...itemData
+                        });
+                    }
+                }
+
+                saveState();
+                inventoryForm.reset();
+                const infoBox = document.getElementById('supplier-info-box');
+                if (infoBox) infoBox.style.display = 'none';
+                
+                renderInventory();
+                
+                if (skuInput) skuInput.focus();
+                showToast(editingId ? 'Product info updated!' : 'New product added to inventory!');
+                
+            } catch (err) {
+                console.error('❌ script.js: Form Submission Error:', err);
+                showToast('Failed to save. check console.', 'error');
+            }
         });
     }
 
@@ -864,262 +888,9 @@ document.addEventListener('DOMContentLoaded', () => {
         statAmcTotal.textContent = window.formatCurrency(totalAmcValue);
     };
 
-    // --- Analytics Charts ---
-    let revenueChart = null;
-    let volumeChart = null;
-    let healthChart = null;
-
-    const initAnalyticsCharts = () => {
-        if (typeof Chart === 'undefined') return;
-
-        const ctxRevenue = document.getElementById('revenueChart');
-        const ctxVolume = document.getElementById('volumeChart');
-        const ctxHealth = document.getElementById('healthChart');
-        if (!ctxRevenue || !ctxVolume || !ctxHealth) return;
-
-        const monthsRevenueBreakdown = []; // For interactivity
-
-        const repairJobs = DataController.getRepairs();
-        const amcContracts = DataController.getAmc();
-        const inventoryData = DataController.getInventory();
-
-        // 1. Revenue Trends (Last 6 Months)
-        const months = [];
-        const repairRevenueData = [];
-        const amcRevenueData = [];
-        const serviceVisitRevenueData = [];
-        
-        // 1.b Volume Chart logic
-        const purchaseCounts = [];
-        const saleCounts = [];
-
-        const now = new Date();
-
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const monthName = d.toLocaleString('default', { month: 'short' });
-            months.push(monthName);
-
-            // Repair Revenue for this month
-            const monthRepairTotal = repairJobs.filter(job => {
-                if (job.status !== 'Completed') return false;
-                const jobDate = new Date(job.createdAt);
-                return jobDate.getMonth() === d.getMonth() && jobDate.getFullYear() === d.getFullYear();
-            }).reduce((sum, job) => sum + (job.price + (job.extraCharges || 0)), 0);
-            repairRevenueData.push(monthRepairTotal);
-
-            // AMC Revenue for this month
-            const monthAmcTotal = amcContracts.filter(amc => {
-                const amcDate = new Date(amc.createdAt);
-                return amcDate.getMonth() === d.getMonth() && amcDate.getFullYear() === d.getFullYear();
-            }).reduce((sum, amc) => sum + (parseFloat(amc.amount) || 0), 0);
-            amcRevenueData.push(monthAmcTotal);
-
-            // Service Visit Revenue for this month
-            const serviceVisits = DataController.getNonAmcCalls() || [];
-            const monthVisitTotal = serviceVisits.filter(v => {
-                const vDate = new Date(v.timestamp);
-                return vDate.getMonth() === d.getMonth() && vDate.getFullYear() === d.getFullYear();
-            }).reduce((sum, v) => sum + (parseFloat(v.fee) || 0), 0);
-            serviceVisitRevenueData.push(monthVisitTotal);
-            
-            // Sales Revenue from Transactions
-            const transactions = DataController.getTransactions() || [];
-            
-            let pCount = 0;
-            let sCount = 0;
-            let monthSalesTotal = 0;
-
-            transactions.forEach(t => {
-                const tDate = new Date(t.timestamp || t.date);
-                if (tDate.getMonth() === d.getMonth() && tDate.getFullYear() === d.getFullYear()) {
-                    if (t.type === 'Sale') {
-                        sCount++;
-                        monthSalesTotal += (t.amount || t.totalValue || 0);
-                    } else if (t.type === 'Purchase') {
-                        pCount++;
-                    }
-                }
-            });
-
-            purchaseCounts.push(pCount);
-            saleCounts.push(sCount);
-
-            monthsRevenueBreakdown.push({
-                repair: monthRepairTotal,
-                amc: monthAmcTotal,
-                sales: monthSalesTotal,
-                visits: monthVisitTotal
-            });
-        }
-
-        const isLight = document.body.classList.contains('light-theme');
-        const textColor = isLight ? '#64748b' : 'rgba(255,255,255,0.5)';
-        const gridColor = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
-
-        if (revenueChart) revenueChart.destroy();
-        revenueChart = new Chart(ctxRevenue, {
-            type: 'line',
-            data: {
-                labels: months,
-                datasets: [
-                    {
-                        label: 'Repairs (₹)',
-                        data: repairRevenueData,
-                        borderColor: '#00B4DB',
-                        backgroundColor: 'rgba(0, 180, 219, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#00B4DB'
-                    },
-                    {
-                        label: 'AMC (₹)',
-                        data: amcRevenueData,
-                        borderColor: '#a855f7',
-                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#a855f7'
-                    },
-                    {
-                        label: 'Service Visits (₹)',
-                        data: serviceVisitRevenueData,
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#f59e0b'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: 'rgba(255, 255, 255, 0.8)',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
-                        padding: 12,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) label += ': ';
-                                if (context.parsed.y !== null) {
-                                    label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.y);
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                },
-                onClick: (e, activeEls) => {
-                    if (activeEls.length > 0) {
-                        const index = activeEls[0].index;
-                        const label = months[index];
-                        const breakdown = monthsRevenueBreakdown[index];
-                        alert(`📊 Revenue Breakdown for ${label} 2026:\n\n` +
-                              `• Repairs: ₹${breakdown.repair.toLocaleString()}\n` +
-                              `• AMC Contracts: ₹${breakdown.amc.toLocaleString()}\n` +
-                              `• Ad-hoc Visits: ₹${breakdown.visits.toLocaleString()}\n` +
-                              `• Product Sales: ₹${breakdown.sales.toLocaleString()}\n\n` +
-                              `Total: ₹${(breakdown.repair + breakdown.amc + breakdown.sales + breakdown.visits).toLocaleString()}`);
-                    }
-                },
-                plugins: { 
-                    legend: { 
-                        display: true, 
-                        position: 'top',
-                        labels: { color: textColor, font: { family: 'Outfit', size: 10 } }
-                    } 
-                },
-                scales: {
-                    y: { grid: { color: gridColor }, ticks: { color: textColor } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
-                }
-            }
-        });
-
-        // 1.b Volume Purchases vs Sales Bar Chart
-        if (volumeChart) volumeChart.destroy();
-        volumeChart = new Chart(ctxVolume, {
-            type: 'bar',
-            data: {
-                labels: months,
-                datasets: [
-                    {
-                        label: 'Sales Vol.',
-                        data: saleCounts,
-                        backgroundColor: '#10b981', // Green
-                        borderRadius: 4
-                    },
-                    {
-                        label: 'Purchases Vol.',
-                        data: purchaseCounts,
-                        backgroundColor: '#ef4444', // Red
-                        borderRadius: 4
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: true, position: 'top', labels: { color: textColor, font: { family: 'Outfit', size: 10 } } }
-                },
-                scales: {
-                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, precision: 0 } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
-                }
-            }
-        });
-
-        // 2. Stock Health
-        const okCount = inventoryData.filter(i => i.qty > (i.minStock || 0)).length;
-        const restockCount = inventoryData.filter(i => i.qty <= (i.minStock || 0)).length;
-
-        if (healthChart) healthChart.destroy();
-        healthChart = new Chart(ctxHealth, {
-            type: 'doughnut',
-            data: {
-                labels: ['Stock OK', 'RESTOCK'],
-                datasets: [{
-                    data: [okCount, restockCount],
-                    backgroundColor: ['#10b981', '#ef4444'],
-                    borderColor: isLight ? '#fff' : 'rgba(15, 23, 42, 1)',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { 
-                        position: 'bottom', 
-                        labels: { color: isLight ? '#1e293b' : 'rgba(255,255,255,0.7)', font: { family: 'Outfit' } } 
-                    }
-                },
-                cutout: '70%'
-            }
-        });
-
-        const healthCard = ctxHealth.closest('.glass-card');
-        if (healthCard) {
-            if (inventoryData.length > 0 && restockCount === 0) {
-                healthCard.classList.add('shimmer-glow');
-            } else {
-                healthCard.classList.remove('shimmer-glow');
-            }
-        }
-    };
-
+    // --- Intelligence Hub: Charts handled below (Line 1318) ---
+    // (global charts object is declared at line 87)
+    
     // --- Tally Logic ---
     const exportBtn = document.getElementById('exportBtn');
     if (exportBtn) {
@@ -1292,78 +1063,90 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Intelligence Hub: Charts ---
     const initAnalyticsCharts = () => {
+        // Delegate all Chart.js charts to the premium Dashboard Charts engine
+        if (window.DashboardCharts) {
+            window.DashboardCharts.refresh();
+        }
+
+        // Intelligence Hub: ApexCharts (Radial + Pulse Area) - kept separate
+        if (typeof ApexCharts === 'undefined') return;
+
         const inventory = DataController.getInventory();
         const transactions = DataController.getTransactions() || [];
         
-        // 1. Stock Health (Radial Bar)
+        // 1. Stock Health Radial (ApexCharts - Intelligence Hub section)
         const lowStockItems = inventory.filter(item => item.qty <= (item.minStock || 5)).length;
         const healthyItems = inventory.length - lowStockItems;
         const healthPercent = inventory.length > 0 ? Math.round((healthyItems / inventory.length) * 100) : 100;
 
         const healthOptions = {
             series: [healthPercent],
-            chart: { height: 300, type: 'radialBar' },
+            chart: { height: 270, type: 'radialBar', background: 'transparent' },
             plotOptions: {
                 radialBar: {
-                    hollow: { size: '70%', },
+                    hollow: { size: '68%' },
+                    track: { background: 'rgba(255,255,255,0.05)', strokeWidth: '100%' },
                     dataLabels: {
                         name: { show: false },
                         value: {
-                            offsetY: 10,
-                            fontSize: '22px',
+                            offsetY: 8,
+                            fontSize: '24px',
                             fontWeight: 700,
-                            formatter: (val) => val + '%',
-                            color: 'var(--text-color)'
-                        }
-                    }
-                }
+                            formatter: val => val + '%',
+                            color: healthPercent > 70 ? '#10b981' : healthPercent > 30 ? '#f59e0b' : '#ef4444',
+                        },
+                    },
+                },
             },
             colors: [healthPercent > 70 ? '#10b981' : healthPercent > 30 ? '#f59e0b' : '#ef4444'],
             labels: ['Stock Health'],
+            theme: { mode: 'dark' },
         };
 
         if (charts.health) charts.health.destroy();
-        const healthEl = document.querySelector("#stockHealthChart");
+        const healthEl = document.querySelector('#stockHealthChart');
         if (healthEl) {
             charts.health = new ApexCharts(healthEl, healthOptions);
             charts.health.render();
         }
 
-        // 2. Performance Pulse (Area Chart - Admin Only)
-        if (window.isAdmin && window.isAdmin()) {
+        // 2. Performance Pulse (Area - Admin Only)
+        if (window.isAdmin && window.isAdmin && DataController.isAdmin()) {
             const last7Days = [...Array(7)].map((_, i) => {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 return d.toISOString().split('T')[0];
             }).reverse();
 
-            const revenueData = last7Days.map(date => {
-                return transactions
-                    .filter(t => t.date === date && t.type === 'Sale')
-                    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-            });
+            const revenueData = last7Days.map(date =>
+                transactions
+                    .filter(t => t.type === 'Sale' && (t.date === new Date(date).toLocaleDateString('en-IN') || t.timestamp?.startsWith(date)))
+                    .reduce((sum, t) => sum + (parseFloat(t.totalValue) || 0), 0)
+            );
 
             const pulseOptions = {
                 series: [{ name: 'Revenue', data: revenueData }],
-                chart: { height: 280, type: 'area', toolbar: { show: false }, zoom: { enabled: false } },
+                chart: { height: 260, type: 'area', toolbar: { show: false }, zoom: { enabled: false }, background: 'transparent' },
                 dataLabels: { enabled: false },
-                stroke: { curve: 'smooth', width: 3 },
-                colors: ['#3b82f6'],
+                stroke: { curve: 'smooth', width: 2.5 },
+                colors: ['#06b6d4'],
                 fill: {
                     type: 'gradient',
-                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [20, 100] }
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.02, stops: [0, 100] },
                 },
                 xaxis: {
-                    categories: last7Days.map(d => d.split('-').slice(1).reverse().join('/')),
+                    categories: last7Days.map(d => new Date(d).toLocaleString('default', { weekday: 'short' })),
                     axisBorder: { show: false },
-                    axisTicks: { show: false }
+                    axisTicks: { show: false },
+                    labels: { style: { colors: '#64748b', fontSize: '11px' } },
                 },
                 yaxis: { show: false },
-                grid: { show: false }
+                grid: { show: false },
+                theme: { mode: 'dark' },
             };
 
             if (charts.revenue) charts.revenue.destroy();
-            const pulseEl = document.querySelector("#performancePulseChart");
+            const pulseEl = document.querySelector('#performancePulseChart');
             if (pulseEl) {
                 charts.revenue = new ApexCharts(pulseEl, pulseOptions);
                 charts.revenue.render();
@@ -1518,17 +1301,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     };
 
+    // --- Traffic Channels Mini Bars ---
+    const renderTrafficChannels = () => {
+        const barsEl = document.getElementById('trafficMiniBars');
+        const tcSales = document.getElementById('tc-sales');
+        const tcRepairs = document.getElementById('tc-repairs');
+        const tcDelta = document.getElementById('tc-delta');
+        if (!barsEl) return;
+
+        const transactions = DataController.getTransactions() || [];
+        const repairs = DataController.getRepairs() || [];
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(1);
+            d.setMonth(d.getMonth() - i);
+            months.push({ label: d.toLocaleString('default', { month: 'short' }), month: d.getMonth(), year: d.getFullYear() });
+        }
+
+        const salesByMonth = months.map(({ month, year }) =>
+            transactions.filter(t => {
+                const d = new Date(t.timestamp || t.date);
+                return t.type === 'Sale' && d.getMonth() === month && d.getFullYear() === year;
+            }).reduce((s, t) => s + (parseFloat(t.totalValue) || 0), 0)
+        );
+
+        const repairsByMonth = months.map(({ month, year }) =>
+            repairs.filter(r => {
+                if (r.status !== 'Completed') return false;
+                const d = new Date(r.createdAt);
+                return d.getMonth() === month && d.getFullYear() === year;
+            }).reduce((s, r) => s + (parseFloat(r.price || 0) + parseFloat(r.extraCharges || 0)), 0)
+        );
+
+        const maxVal = Math.max(...salesByMonth, ...repairsByMonth, 1);
+
+        barsEl.innerHTML = months.map((m, i) => {
+            const sh = Math.round((salesByMonth[i] / maxVal) * 56) + 4;
+            const rh = Math.round((repairsByMonth[i] / maxVal) * 24) + 2;
+            return `
+                <div class="traffic-bar-group">
+                    <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:3px;width:100%;">
+                        <div class="traffic-bar-repairs" style="height:${rh}px;"></div>
+                        <div class="traffic-bar-sales" style="height:${sh}px;"></div>
+                    </div>
+                    <div class="traffic-bar-label">${m.label}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Current month totals
+        const cur = months[months.length - 1];
+        const curSales = salesByMonth[salesByMonth.length - 1];
+        const curRepairs = repairsByMonth[repairsByMonth.length - 1];
+        const prev = salesByMonth[salesByMonth.length - 2] || 0;
+        const delta = prev > 0 ? (((curSales - prev) / prev) * 100).toFixed(1) : 0;
+
+        if (tcSales) tcSales.textContent = window.formatCurrency ? formatCurrency(curSales) : '₹' + curSales.toFixed(0);
+        if (tcRepairs) tcRepairs.textContent = window.formatCurrency ? formatCurrency(curRepairs) : '₹' + curRepairs.toFixed(0);
+        if (tcDelta) {
+            tcDelta.textContent = (delta >= 0 ? '+' : '') + delta + '%';
+            tcDelta.style.color = delta >= 0 ? '#10b981' : '#ef4444';
+        }
+    };
+
+    // --- Customer LTV Podium ---
+    const renderCustomerLtv = () => {
+        const listEl = document.getElementById('customerLtvList');
+        if (!listEl || !DataController.getCustomerCLV) return;
+
+        const clv = DataController.getCustomerCLV().slice(0, 6);
+        const rankClasses = ['gold', 'silver', 'bronze', 'other', 'other', 'other'];
+        const rankIcons = ['🥇', '🥈', '🥉'];
+
+        if (clv.length === 0) {
+            listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">No customer data yet</div>';
+            return;
+        }
+
+        listEl.innerHTML = clv.map((c, i) => `
+            <div class="ltv-item">
+                <div class="ltv-rank ${rankClasses[i]}">${rankIcons[i] || (i + 1)}</div>
+                <div class="ltv-info">
+                    <div class="ltv-name">${c.name}</div>
+                    <div class="ltv-meta">${c.purchases || 0} transactions · ${c.repairs || 0} repairs</div>
+                </div>
+                <div class="ltv-value">${window.formatCurrency ? formatCurrency(c.revenue) : '₹' + Math.round(c.revenue).toLocaleString('en-IN')}</div>
+            </div>
+        `).join('');
+    };
+
     // Initial Load
     loadState();
     initAnalyticsCharts();
     renderTodaySummary();
     renderPulse();
     initSmartRibbons();
+    renderTrafficChannels();
+    renderCustomerLtv();
 
     // Listen for data updates to refresh charts/pulse
     window.addEventListener('dataUpdate', () => {
         initAnalyticsCharts();
         renderPulse();
         initSmartRibbons();
+        renderTodaySummary();
+        renderTrafficChannels();
+        renderCustomerLtv();
     });
 });

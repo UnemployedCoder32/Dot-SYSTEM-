@@ -2786,3 +2786,413 @@ $cssContent
     from { opacity: 0; transform: translateY(-30px) scale(0.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ANALYTICS HUB — Premium Dark Chart Dashboard
+   ═══════════════════════════════════════════════════════════════════ */
+
+.analytics-hub {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+}
+
+/* ── Chart Card Shared ─────────────────────────────────────────── */
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+}
+
+.chart-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.2rem;
+    letter-spacing: -0.01em;
+}
+
+.chart-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0;
+    font-weight: 400;
+}
+
+.chart-canvas-wrap {
+    position: relative;
+    height: 260px;
+    width: 100%;
+}
+
+.chart-canvas-wrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ── Badge: Live Pulse ─────────────────────────────────────────── */
+.badge-live {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0.3rem 0.65rem;
+    border-radius: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.badge-live::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: livePulse 1.5s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ── Row 1: Primary Charts Grid ────────────────────────────────── */
+.charts-row-primary {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.charts-col-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.chart-card-lg { /* Full-width area chart */ }
+
+.chart-card-sm { /* Compact card for donut/small */ }
+
+/* ── Row 2: Secondary Charts Grid ──────────────────────────────── */
+.charts-row-secondary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.chart-card-md { /* 3-across medium chart */ }
+
+/* ── Row 3: Tertiary Charts Grid ───────────────────────────────── */
+.charts-row-tertiary {
+    display: grid;
+    grid-template-columns: 280px 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* ── Traffic Channels Card ─────────────────────────────────────── */
+.traffic-channels-card {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Mini stacked bar viz */
+.traffic-mini-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+    margin-bottom: 1.25rem;
+    padding: 0 0.25rem;
+}
+
+.traffic-bar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+}
+
+.traffic-bar-sales {
+    width: 100%;
+    background: rgba(59, 130, 246, 0.75);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-height: 4px;
+}
+
+.traffic-bar-repairs {
+    width: 100%;
+    background: rgba(6, 182, 212, 0.55);
+    border-radius: 4px 4px 0 0;
+    transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+    min-height: 2px;
+}
+
+.traffic-bar-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 4px;
+}
+
+.traffic-legend {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.traffic-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.traffic-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+/* Stat row (Desktop · Mobile · Mix Delta style) */
+.traffic-stat-row {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    margin-top: auto;
+}
+
+.traffic-stat {
+    flex: 1;
+    text-align: center;
+    padding: 0 0.5rem;
+    border-right: 1px solid var(--border);
+}
+
+.traffic-stat:last-child {
+    border-right: none;
+}
+
+.traffic-stat-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+}
+
+.traffic-stat-val {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+}
+
+/* ── Customer LTV List ─────────────────────────────────────────── */
+.ltv-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.ltv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    overflow-y: auto;
+    max-height: 240px;
+    scrollbar-width: none;
+}
+
+.ltv-list::-webkit-scrollbar { display: none; }
+
+.ltv-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.65rem 0.85rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.ltv-item:hover {
+    background: rgba(59, 130, 246, 0.06);
+    border-color: rgba(59, 130, 246, 0.2);
+    transform: translateX(4px);
+}
+
+.ltv-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.ltv-rank.gold   { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.ltv-rank.silver { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+.ltv-rank.bronze { background: rgba(205, 127, 50, 0.15); color: #cd7f32; }
+.ltv-rank.other  { background: rgba(255, 255, 255, 0.05); color: var(--text-muted); }
+
+.ltv-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ltv-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-main);
+}
+
+.ltv-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.ltv-value {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #10b981;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Intelligence Hub (Radar + Pulse) ──────────────────────────── */
+.intelligence-hub {
+    margin-bottom: 1.5rem;
+}
+
+.insight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 320px;
+    gap: 1.5rem;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    color: var(--text-main);
+}
+
+/* Audit / Pulse list */
+.audit-card { overflow: hidden; }
+
+.audit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+.audit-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: background 0.2s;
+}
+
+.audit-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+.audit-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.audit-info { flex: 1; min-width: 0; }
+
+.audit-action {
+    font-size: 0.78rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.audit-details {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.audit-time {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.audit-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+/* ── Responsive Breakpoints ────────────────────────────────────── */
+@media (max-width: 1200px) {
+    .charts-row-primary { grid-template-columns: 1fr; }
+    .charts-col-right { flex-direction: row; }
+    .chart-card-sm { flex: 1; }
+    .charts-row-tertiary { grid-template-columns: 1fr 1fr; }
+    .insight-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 900px) {
+    .charts-row-secondary { grid-template-columns: 1fr; }
+    .charts-row-tertiary { grid-template-columns: 1fr; }
+    .charts-col-right { flex-direction: column; }
+    .insight-grid { grid-template-columns: 1fr; }
+}

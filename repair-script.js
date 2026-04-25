@@ -43,15 +43,35 @@ window.filterRepairs = () => {
     };
 
     const loadState = () => {
+        console.log('📊 repair-script.js: Loading state...');
         repairJobs = DataController.getRepairs();
         crmHistory = DataController.getCrmHistory();
         renderTable();
         applyRoleRestrictions();
     };
 
-    // Listen for cloud data updates
-    window.addEventListener('dataUpdate', () => {
+    // --- Deterministic Initialization Logic ---
+    const init = () => {
+        // 1. Initial render from LocalStorage Cache (PWA Feel)
         loadState();
+
+        // 2. Trigger sync with Local File system
+        if (DataController.syncWithLocalFile) {
+            DataController.syncWithLocalFile();
+        }
+    };
+
+    // Listen for definitive sync completion
+    window.addEventListener('syncComplete', () => {
+        console.log('✅ repair-script.js: Sync Complete received. Refreshing UI...');
+        loadState();
+    });
+
+    // Also listen for partial data updates
+    window.addEventListener('dataUpdate', (e) => {
+        if (e.detail && e.detail.source !== 'sync') {
+            loadState();
+        }
     });
 
     const applyRoleRestrictions = () => {
@@ -270,7 +290,6 @@ window.filterRepairs = () => {
                 correctLevel : QRCode.CorrectLevel.H
             });
         });
-        });
 
         totalJobsBadge.textContent = `${repairJobs.length} Job${repairJobs.length > 1 ? 's' : ''}`;
         updateKPIs();
@@ -298,74 +317,98 @@ window.filterRepairs = () => {
 
     // --- Core Features ---
 
-    repairForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    if (repairForm) {
+        repairForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
 
-        const nameInput = document.getElementById('custName');
-        const phoneInput = document.getElementById('custPhone');
-        const typeInput = document.getElementById('deviceType');
-        const modelInput = document.getElementById('deviceModel');
-        const issueInput = document.getElementById('deviceIssue');
-        const priceInput = document.getElementById('estPrice');
-        const costInput = document.getElementById('partCost');
-        const extraInput = document.getElementById('extraCharges');
-        const commentInput = document.getElementById('jobComment');
+            console.log('📝 repair-script.js: Intercepted Repair Form Submission');
 
-        const phone = phoneInput.value.trim();
-        const price = Math.max(0, parseFloat(priceInput.dataset.rawValue || priceInput.value) || 0); // Defaults to 0 correctly
-        const partCost = Math.max(0, parseFloat(costInput.dataset.rawValue || costInput.value) || 0);
-        const extraCharges = Math.max(0, parseFloat(extraInput.dataset.rawValue || extraInput.value) || 0);
+            try {
+                // Safer Value Extraction Helper
+                const getNumericValue = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el) return 0;
+                    return Math.max(0, parseFloat(el.dataset.rawValue || el.value || '0') || 0);
+                };
 
-        if (!validatePhone(phone)) {
-            alert('Please enter a valid 10-digit phone number.');
-            return;
-        }
+                const nameEl = document.getElementById('custName');
+                const phoneEl = document.getElementById('custPhone');
+                const typeEl = document.getElementById('deviceType');
+                const modelEl = document.getElementById('deviceModel');
+                const issueEl = document.getElementById('deviceIssue');
+                const dateEl = document.getElementById('estCompletion');
+                const commentEl = document.getElementById('jobComment');
 
-        // CRM Update
-        const name = nameInput.value.trim();
-        crmHistory[phone] = {
-            name: name,
-            lastVisit: new Date().toLocaleDateString(),
-            device: typeInput.value
-        };
+                if (!nameEl || !phoneEl || !typeEl) {
+                    throw new Error('Critical form elements missing from DOM');
+                }
 
-        const newJob = {
-            id: 'job_' + Date.now().toString(),
-            srNo: generateSRNo(),
-            customerName: name,
-            phone: phone,
-            deviceType: typeInput.value,
-            model: modelInput.value.trim(),
-            deviceIssue: issueInput.value.trim(),
-            price: price,
-            partCost: partCost,
-            extraCharges: extraCharges,
-            comment: commentInput.value.trim(),
-            techNotes: document.getElementById('techNotes')?.value.trim() || '',
-            status: 'Pending',
-            estCompletion: document.getElementById('estCompletion').value,
-            createdAt: new Date().toLocaleString(),
-            timeline: [
-                { status: 'Received', timestamp: new Date().toLocaleString() }
-            ]
-        };
+                const phone = phoneEl.value.trim();
+                const price = getNumericValue('estPrice');
+                const partCost = getNumericValue('partCost');
+                const extraCharges = getNumericValue('extraCharges');
 
-        repairJobs.unshift(newJob);
-        saveState();
-        repairForm.reset();
-        
-        // Clear dataset raw values
-        priceInput.dataset.rawValue = '';
-        costInput.dataset.rawValue = '';
-        extraInput.dataset.rawValue = '';
-        
-        nameInput.focus();
-        renderTable();
-        if (window.DataController) {
-            DataController.logActivity('New Repair', `SR No. ${newJob.srNo} created for ${newJob.customerName}`, 'success');
-        }
-        showToast('Repair ticket created successfully!');
-    });
+                if (!validatePhone(phone)) {
+                    showToast('Please enter a valid 10-digit phone number.', 'error');
+                    phoneEl.focus();
+                    return;
+                }
+
+                const newJob = {
+                    id: editingId || Date.now().toString(),
+                    srNo: editingId ? (repairJobs.find(j => j.id === editingId)?.srNo || generateSRNo()) : generateSRNo(),
+                    customerName: nameEl.value.trim(),
+                    phone: phone,
+                    deviceType: typeEl.value,
+                    model: modelEl ? modelEl.value.trim() : '',
+                    deviceIssue: issueEl ? issueEl.value.trim() : '',
+                    price: price,
+                    partCost: partCost,
+                    extraCharges: extraCharges,
+                    comment: commentEl ? commentEl.value.trim() : '',
+                    status: editingId ? (repairJobs.find(j => j.id === editingId)?.status || 'Pending') : 'Pending',
+                    createdAt: editingId ? (repairJobs.find(j => j.id === editingId)?.createdAt || new Date().toLocaleString('en-IN')) : new Date().toLocaleString('en-IN')
+                };
+
+                if (editingId) {
+                    const idx = repairJobs.findIndex(j => j.id === editingId);
+                    if (idx !== -1) {
+                        repairJobs[idx] = newJob;
+                        showToast('Repair Job Updated!');
+                    }
+                } else {
+                    repairJobs.push(newJob);
+                    
+                    // Update CRM Intelligence
+                    if (!crmHistory[phone] || new Date().getTime() > new Date(crmHistory[phone].lastVisit).getTime()) {
+                        crmHistory[phone] = {
+                            name: newJob.customerName,
+                            lastVisit: new Date().toLocaleDateString(),
+                            device: `${newJob.deviceType} ${newJob.model}`
+                        };
+                    }
+                    showToast('New Repair Job Created!');
+                }
+
+                saveState();
+                loadState();
+                
+                // Reset form and UI
+                repairForm.reset();
+                editingId = null;
+                const submitBtn = repairForm.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Create Ticket';
+                
+                // Focus back on phone for next entry
+                phoneEl.focus();
+
+            } catch (err) {
+                console.error('❌ repair-script.js: Critical Submission Error:', err);
+                showToast('Failed to save repair job: ' + err.message, 'error');
+            }
+        });
+    }
 
     jobSearch.addEventListener('input', (e) => {
         filterQuery = e.target.value;
@@ -532,13 +575,6 @@ window.filterRepairs = () => {
                     transactions.push({
                         id: 'tr_usage_' + Date.now() + Math.random(),
                         date: new Date().toISOString().split('T')[0],
-                                <th>Customer Details</th>
-                                <th>Device Info</th>
-                                <th>Tracking</th>
-                                <th>Connect</th>
-                                <th>Final Cost</th>
-                                <th>Status</th>
-                                <th>Actions</th>
                         totalValue: 0,
                         relatedJobSr: repairJobs[jobIndex].srNo
                     });
@@ -785,6 +821,6 @@ window.filterRepairs = () => {
         });
     });
 
-    // --- Initial Load ---
-    renderTable();
+    // Start sequence
+    init();
 });

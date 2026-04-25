@@ -1,32 +1,10 @@
 {
   "inventory": [],
   "suppliers": [],
-  "repairJobs": [
-    {
-      "id": "1775888113680",
-      "srNo": "HS-J-1001",
-      "customerName": "Final Victory v3",
-      "phone": "9988776655",
-      "deviceType": "Printer",
-      "model": "P-Series",
-      "deviceIssue": "Paper Jam / Sensor",
-      "price": 1200,
-      "partCost": 0,
-      "extraCharges": 0,
-      "comment": "",
-      "status": "Pending",
-      "createdAt": "11/4/2026, 11:45:13 am"
-    }
-  ],
+  "repairJobs": [],
   "amcContracts": [],
   "employees": [],
-  "crmHistory": {
-    "9988776655": {
-      "name": "Final Victory v3",
-      "lastVisit": "4/11/2026",
-      "device": "Printer P-Series"
-    }
-  },
+  "crmHistory": {},
   "transactions": [
     {
       "id": "tr_1775882896839v8e7y",

@@ -420,26 +420,149 @@
                 </div>
             </section>
 
-            <!-- Analytics Charts Section -->
-            <section class="charts-section" style="display: grid; grid-template-columns: 1fr 1fr 350px; gap: 2rem; margin-bottom: 2rem;">
-                <div class="glass-card">
-                    <h2><i class="fa-solid fa-chart-line text-cyan"></i> Revenue Trends (6M)</h2>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="revenueChart"></canvas>
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <!-- ANALYTICS HUB — Premium Charts Dashboard               -->
+            <!-- ═══════════════════════════════════════════════════════ -->
+            <section class="analytics-hub" id="analyticsHub">
+
+              <!-- Row 1: Revenue Trends + Volume + Health -->
+              <div class="charts-row-primary">
+
+                <!-- Revenue & Profit Trends (6M) -->
+                <div class="glass-card chart-card-lg admin-only">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-chart-line" style="color:var(--accent);"></i> Revenue Trends</h3>
+                      <p class="chart-subtitle">Monthly revenue vs profit — last 6 months</p>
                     </div>
+                    <span class="badge badge-live">Live</span>
+                  </div>
+                  <div class="chart-canvas-wrap">
+                    <canvas id="revenueChart"></canvas>
+                  </div>
                 </div>
-                <div class="glass-card">
-                    <h2><i class="fa-solid fa-chart-column text-purple"></i> Volume (Purchases vs Sales)</h2>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="volumeChart"></canvas>
+
+                <!-- Health + Daily Stack -->
+                <div class="charts-col-right">
+
+                  <!-- Stock Health Doughnut -->
+                  <div class="glass-card chart-card-sm">
+                    <div class="chart-card-header">
+                      <div>
+                        <h3 class="chart-title"><i class="fa-solid fa-heart-pulse" style="color:#10b981;"></i> Stock Health</h3>
+                        <p class="chart-subtitle">Inventory condition breakdown</p>
+                      </div>
                     </div>
-                </div>
-                <div class="glass-card">
-                    <h2><i class="fa-solid fa-chart-pie text-cyan"></i> Stock Health</h2>
-                    <div style="height: 300px; position: relative; z-index: 1;">
-                        <canvas id="healthChart"></canvas>
+                    <div class="chart-canvas-wrap" style="height:210px;">
+                      <canvas id="healthChart"></canvas>
                     </div>
+                  </div>
+
                 </div>
+              </div>
+
+              <!-- Row 2: Volume Bar + Daily Activity + Category -->
+              <div class="charts-row-secondary">
+
+                <!-- Volume: Purchases vs Sales -->
+                <div class="glass-card chart-card-md">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-chart-column" style="color:#8b5cf6;"></i> Volume</h3>
+                      <p class="chart-subtitle">Purchases vs sales — 6M</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-wrap" style="height:220px;">
+                    <canvas id="volumeChart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Daily Activity (Sales + Repairs) -->
+                <div class="glass-card chart-card-md admin-only">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-bolt" style="color:#f59e0b;"></i> Daily Activity</h3>
+                      <p class="chart-subtitle">Sales revenue &amp; repairs — last 7 days</p>
+                    </div>
+                    <span class="badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3);">7D</span>
+                  </div>
+                  <div class="chart-canvas-wrap" style="height:220px;">
+                    <canvas id="dailyActivityChart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Category / Supplier Revenue Breakdown -->
+                <div class="glass-card chart-card-md admin-only">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-layer-group" style="color:#06b6d4;"></i> Category Breakdown</h3>
+                      <p class="chart-subtitle">Revenue by supplier / segment</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-wrap" style="height:220px;">
+                    <canvas id="categoryChart"></canvas>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Row 3: Expense Donut + Traffic Channels Mini-Stats -->
+              <div class="charts-row-tertiary admin-only">
+
+                <!-- Expense Donut -->
+                <div class="glass-card chart-card-sm" style="min-height:300px;">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-circle-dollar-to-slot" style="color:#ec4899;"></i> Cost Breakdown</h3>
+                      <p class="chart-subtitle">Payroll · Misc · Repair revenue</p>
+                    </div>
+                  </div>
+                  <div class="chart-canvas-wrap" style="height:220px;">
+                    <canvas id="expenseChart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Traffic Channels Mini-Stats (inspired by reference UI) -->
+                <div class="glass-card traffic-channels-card">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-signal" style="color:#3b82f6;"></i> Business Channels</h3>
+                      <p class="chart-subtitle">Monthly breakdown by revenue source</p>
+                    </div>
+                  </div>
+                  <!-- Mini Bar Viz -->
+                  <div class="traffic-mini-bars" id="trafficMiniBars"></div>
+                  <!-- Stat Row -->
+                  <div class="traffic-stat-row">
+                    <div class="traffic-stat">
+                      <div class="traffic-stat-label">SALES</div>
+                      <div class="traffic-stat-val" id="tc-sales">₹0</div>
+                    </div>
+                    <div class="traffic-stat">
+                      <div class="traffic-stat-label">REPAIRS</div>
+                      <div class="traffic-stat-val" id="tc-repairs">₹0</div>
+                    </div>
+                    <div class="traffic-stat" style="color:#10b981;">
+                      <div class="traffic-stat-label">NET DELTA</div>
+                      <div class="traffic-stat-val" id="tc-delta">+0%</div>
+                    </div>
+                  </div>
+                  <a href="transactions.html" class="btn btn-outline" style="width:100%;margin-top:1rem;text-align:center;display:block;padding:0.7rem;">View Full Report</a>
+                </div>
+
+                <!-- Customer LTV Podium -->
+                <div class="glass-card ltv-card">
+                  <div class="chart-card-header">
+                    <div>
+                      <h3 class="chart-title"><i class="fa-solid fa-ranking-star" style="color:#f59e0b;"></i> Top Customers</h3>
+                      <p class="chart-subtitle">Lifetime value leaders</p>
+                    </div>
+                  </div>
+                  <div id="customerLtvList" class="ltv-list"></div>
+                </div>
+
+              </div>
+
             </section>
 
             <section class="top-products-section glass-card" style="margin-bottom: 2rem;">
@@ -558,8 +681,10 @@
         </div>
     </div>
 
-    <!-- Core Scripts -->
+    <!-- Core Chart Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="dashboard-charts.js" defer></script>
     <!-- Excel Import Preview Modal -->
     <div class="modal" id="excelPreviewModal">
         <div class="modal-content" style="max-width: 900px;">
@@ -598,9 +723,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <!-- Supabase Production Cloud DB -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js"></script>
     
     <script src="data-controller.js"></script>
     <!-- DOT SYSTEM PRIME: Command Palette Modal -->

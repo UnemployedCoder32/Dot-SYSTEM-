@@ -82,51 +82,59 @@ window.DataController = (() => {
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
     };
 
-    // ── Supabase Cloud Engine (Production Sync) ────────────────
+    // ── Local File System Engine (Offline Desktop Mode) ────────────────
     let _syncTimeout = null;
+    const API_BASE = 'http://localhost:3000/api';
 
-    const syncWithSupabase = async () => {
-        console.log('📡 Sync Engine: Connecting to Supabase Cloud...');
+    const syncWithLocalFile = async () => {
+        console.log('📡 Sync Engine: Connecting to Local Database Server...');
         try {
-            const cloudData = await SupabaseDB.getData();
+            // Verify Health First
+            const health = await fetch(`${API_BASE}/health`).then(r => r.json()).catch(() => ({ status: 'error' }));
+            if (health.status !== 'ok') throw new Error('Local Server Offline');
 
-            if (!cloudData) {
-                console.warn('📂 Cloud Database is empty. Initializing with current local cache...');
-                queueCloudSync(0); // Immediate upload
-                return;
+            const resp = await fetch(`${API_BASE}/load`);
+            if (!resp.ok) throw new Error('Data Load Failed');
+            
+            const fileData = await resp.json();
+
+            // Total State Sync
+            if (fileData && typeof fileData === 'object' && Object.keys(fileData).length > 0) {
+                Object.keys(_state).forEach(key => {
+                    if (fileData[key] !== undefined) {
+                        _state[key] = fileData[key];
+                    }
+                });
+                console.log('✅ Sync Engine: Local Database Parity achieved.');
+            } else {
+                console.warn('📂 Local Database file is empty.');
             }
 
-            // Standard merge: Take cloud data as truth, fallback to local if missing
-            _state.inventory    = cloudData.inventory    || _state.inventory;
-            _state.suppliers    = cloudData.suppliers    || _state.suppliers;
-            _state.repairJobs   = cloudData.repairJobs   || _state.repairJobs;
-            _state.amcContracts = cloudData.amcContracts || _state.amcContracts;
-            _state.employees    = cloudData.employees    || _state.employees;
-            _state.transactions = cloudData.transactions || _state.transactions;
-            _state.serviceCalls = cloudData.serviceCalls || _state.serviceCalls;
-            _state.nonAmcCalls  = cloudData.nonAmcCalls  || _state.nonAmcCalls;
-            _state.expenses     = cloudData.expenses     || _state.expenses;
-            _state.trash        = cloudData.trash        || _state.trash;
-            _state.pulse        = cloudData.pulse        || _state.pulse;
-            _state.users        = cloudData.users        || _state.users;
-            _state.crmHistory   = cloudData.crmHistory   || _state.crmHistory;
-
-            console.log('✅ Sync Engine: Cloud Parity achieved.');
-            window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL' } }));
+            // Signal that we are ready
+            window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL', source: 'sync' } }));
+            window.dispatchEvent(new CustomEvent('syncComplete')); 
         } catch (err) {
             console.error('❌ Sync Engine Error:', err.message);
+            // On error, we still dispatch dataUpdate to let UI render from fallbackInit (localStorage)
+            window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key: 'ALL', source: 'fallback' } }));
         }
     };
 
-    const queueCloudSync = (delay = 5000) => {
+    const queueLocalSync = (delay = 3000) => {
         if (_syncTimeout) clearTimeout(_syncTimeout);
         _syncTimeout = setTimeout(async () => {
-            console.log('💾 Sync Engine: Saving to Supabase...');
-            const success = await SupabaseDB.saveData(_state);
-            if (success) {
-                console.log('✅ Sync Engine: Cloud Persistence Successful.');
-            } else {
-                console.error('❌ Sync Engine: Cloud Persistence Failed.');
+            console.log('💾 Sync Engine: Auto-saving to database.json...');
+            try {
+                const resp = await fetch(`${API_BASE}/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_state)
+                });
+                if (resp.ok) {
+                    console.log('✅ Sync Engine: Local Persistence Successful.');
+                }
+            } catch (err) {
+                console.error('❌ Sync Engine: Local Persistence Failed.', err.message);
             }
         }, delay);
     };
@@ -135,8 +143,8 @@ window.DataController = (() => {
     const init = () => {
         // Load Local PWA cache first for instant startup
         fallbackInit();
-        // Then reconcile with Supabase Cloud
-        syncWithSupabase();
+        // Then reconcile with local file system
+        syncWithLocalFile();
     };
 
     const save = (key, data) => {
@@ -149,8 +157,8 @@ window.DataController = (() => {
 
         window.dispatchEvent(new CustomEvent('dataUpdate', { detail: { key } }));
 
-        // 2. Debounced Cloud Storage (saves every 5 seconds)
-        queueCloudSync();
+        // 2. Debounced Local File Storage (saves every 3 seconds)
+        queueLocalSync();
     };
 
     // --- Inventory ---
